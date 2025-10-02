@@ -1,0 +1,23 @@
+{
+  "title": "Projektgenomgång - Webbplatsuppdatering",
+  "speakers": ["David Berg", "Sara Nilsson", "Johan Karlsson"],
+  "date": "2024-09-25",
+  "audioPath": "./audio/project_review.wav",
+  "transcribedText": [
+    {
+      "text": "Vi är här för att gå igenom statusen på webbplatsuppdateringen.",
+      "speaker": "David Berg",
+      "timestamp": "00:00:08"
+    },
+    {
+      "text": "Designfasen är nu komplett och vi har fått godkännande från kunden.",
+      "speaker": "Sara Nilsson",
+      "timestamp": "00:00:15"
+    },
+    {
+      "text": "Utmärkt. Hur ser tidsplanen ut för utvecklingsfasen?",
+      "speaker": "Johan Karlsson",
+      "timestamp": "00:00:22"
+    }
+  ]
+}

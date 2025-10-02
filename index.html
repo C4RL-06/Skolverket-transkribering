@@ -3,12 +3,33 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Transcription App</title>
+    <title>Transkriberings tjänst</title>
+    <link rel="stylesheet" href="main.css">
 </head>
 <body>
-    <h1>Transcription App</h1>
-    <button onclick="sayHi()">Say Hi</button>
-    <div id="message"></div>
+    <div class="app-container">
+        <!-- Left Panel -->
+        <div class="left-panel">
+            <div class="left-panel-content">
+                <h1>Dina transkriberingar</h1>
+                <div class="separator"></div>
+                <button class="new-transcription-btn">Ny transkribering</button>
+                <div class="transcription-list" id="transcriptionList">
+                    <!-- Transcription cards will be put here by JavaScript :p -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Right Panel -->
+        <div class="right-panel">
+            <div class="right-panel-content" id="transcriptionContent">
+                <div class="empty-state">
+                    <h2>Välj eller skapa en transkribering</h2>
+                    <p>Välj eller skapa en transkribering i den vänstra panelen</p>
+                </div>
+            </div>
+        </div>
+    </div>
 
     <script src="script.js"></script>
 </body>

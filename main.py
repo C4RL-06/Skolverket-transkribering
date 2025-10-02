@@ -3,8 +3,10 @@ import os
 import sys
 
 class Api:
-    def say_hi(self):
-        return "Hi from Python!"
+    def getTranscriptionFiles(self):
+        import glob
+        json_files = glob.glob('transcription files/*.json')
+        return [os.path.basename(file) for file in json_files]
 
 def resource_path(relative_path):
     try:
@@ -18,9 +20,9 @@ def main():
     api = Api()
     
     window = webview.create_window(
-        'Transcription App',
+        'Skolverkets Transkripteringsapp',
         url=f'file://{html_file_path}',
-        min_size=(400, 300),
+        min_size=(600, 400),
         js_api=api
     )
     
