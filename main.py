@@ -20,7 +20,7 @@ def main():
     api = Api()
     
     window = webview.create_window(
-        'Skolverkets Transkripteringsapp',
+        'Skolverkets Transkriberingsapp',
         url=f'file://{html_file_path}',
         min_size=(600, 400),
         js_api=api
