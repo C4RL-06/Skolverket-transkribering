@@ -176,6 +176,17 @@ body {
     color: #333;
 }
 
+.editable-title {
+    cursor: pointer;
+    transition: background-color 0.2s;
+    padding: 4px;
+    border-radius: 4px;
+}
+
+.editable-title:hover {
+    background-color: #f8f9fa;
+}
+
 .content-date {
     font-size: 14px;
     color: #666;
@@ -200,6 +211,16 @@ body {
     font-size: 14px;
     font-weight: 500;
     border: 1px solid #e9ecef;
+}
+
+.editable-speaker {
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.editable-speaker:hover {
+    background-color: #e9ecef;
+    border-color: #007bff;
 }
 
 /* Transcription content */

@@ -7,6 +7,16 @@ class Api:
         import glob
         json_files = glob.glob('transcription files/*.json')
         return [os.path.basename(file) for file in json_files]
+    
+    def saveTranscription(self, filename, transcriptionData):
+        import json
+        try:
+            filepath = os.path.join('transcription files', filename)
+            with open(filepath, 'w', encoding='utf-8') as f:
+                json.dump(transcriptionData, f, indent=2, ensure_ascii=False)
+            return {"success": True, "message": "Transcription saved successfully"}
+        except Exception as e:
+            return {"success": False, "message": str(e)}
 
 def resource_path(relative_path):
     try:

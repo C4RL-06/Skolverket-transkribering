@@ -34,6 +34,8 @@ async function loadTranscriptions() {
                 continue;
             }
             const transcriptionData = await transcriptionResponse.json();
+            // Store the original filename with the transcription data
+            transcriptionData._filename = filename;
             transcriptionsData.push(transcriptionData);
         }
         
@@ -98,7 +100,7 @@ function renderTranscriptionContent() {
     }
     
     const speakersHtml = selectedTranscription.speakers
-        .map(speaker => `<span class="speaker-tag">${speaker}</span>`)
+        .map((speaker, index) => `<span class="speaker-tag editable-speaker" onclick="editSpeaker(this, ${index})">${speaker}</span>`)
         .join('');
     
     const transcriptionEntriesHtml = selectedTranscription.transcribedText
@@ -106,7 +108,7 @@ function renderTranscriptionContent() {
             <div class="transcription-entry">
                 <div class="entry-timestamp">${formatTimestamp(entry.timestamp)}</div>
                 <div class="entry-content">
-                    <div class="entry-speaker">${entry.speaker}</div>
+                    <div class="entry-speaker">${selectedTranscription.speakers[entry.speakerIndex]}</div>
                     <div class="entry-text">${entry.text}</div>
                 </div>
             </div>
@@ -114,7 +116,7 @@ function renderTranscriptionContent() {
     
     contentContainer.innerHTML = `
         <div class="content-header">
-            <h1 class="content-title">${selectedTranscription.title}</h1>
+            <h1 class="content-title editable-title" onclick="editTitle(this)">${selectedTranscription.title}</h1>
             <span class="content-date">${selectedTranscription.date}</span>
         </div>
         
@@ -128,6 +130,144 @@ function renderTranscriptionContent() {
             ${transcriptionEntriesHtml}
         </div>
     `;
+}
+
+// Edit title functionality
+function editTitle(titleElement) {
+    const currentTitle = titleElement.textContent;
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.value = currentTitle;
+    input.className = 'title-editor';
+    input.style.cssText = 'font-size: 24px; font-weight: 600; border: 2px solid #007bff; padding: 4px; border-radius: 4px; background: white;';
+    
+    titleElement.replaceWith(input);
+    input.focus();
+    input.select();
+    
+    function saveTitle() {
+        const newTitle = input.value.trim();
+        if (newTitle && newTitle !== currentTitle) {
+            // Update the selected transcription
+            selectedTranscription.title = newTitle;
+            
+            // Update the card in the left panel
+            const activeCard = document.querySelector('.transcription-card.active .card-title');
+            if (activeCard) {
+                activeCard.textContent = newTitle;
+            }
+            
+            // Save to JSON file
+            saveTranscriptionToFile();
+        }
+        
+        // Replace input with updated title
+        const newTitleElement = document.createElement('h1');
+        newTitleElement.className = 'content-title editable-title';
+        newTitleElement.onclick = () => editTitle(newTitleElement);
+        newTitleElement.textContent = selectedTranscription.title;
+        input.replaceWith(newTitleElement);
+    }
+    
+    input.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+            saveTitle();
+        } else if (e.key === 'Escape') {
+            // Cancel editing
+            const titleElement = document.createElement('h1');
+            titleElement.className = 'content-title editable-title';
+            titleElement.onclick = () => editTitle(titleElement);
+            titleElement.textContent = currentTitle;
+            input.replaceWith(titleElement);
+        }
+    });
+    
+    input.addEventListener('blur', saveTitle);
+}
+
+// Edit speaker functionality
+function editSpeaker(speakerElement, speakerIndex) {
+    const currentName = speakerElement.textContent;
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.value = currentName;
+    input.className = 'speaker-editor';
+    input.style.cssText = 'font-size: 14px; font-weight: 500; border: 2px solid #007bff; padding: 4px 8px; border-radius: 20px; background: white;';
+    
+    speakerElement.replaceWith(input);
+    input.focus();
+    input.select();
+    
+    function saveSpeaker() {
+        const newName = input.value.trim();
+        if (newName && newName !== currentName) {
+            // Update the speaker in the selected transcription
+            selectedTranscription.speakers[speakerIndex] = newName;
+            
+            // Re-render the transcription content to update all speaker references
+            renderTranscriptionContent();
+            
+            // Save to JSON file
+            saveTranscriptionToFile();
+        } else {
+            // Replace input with original speaker element
+            const newSpeakerElement = document.createElement('span');
+            newSpeakerElement.className = 'speaker-tag editable-speaker';
+            newSpeakerElement.onclick = () => editSpeaker(newSpeakerElement, speakerIndex);
+            newSpeakerElement.textContent = currentName;
+            input.replaceWith(newSpeakerElement);
+        }
+    }
+    
+    input.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+            saveSpeaker();
+        } else if (e.key === 'Escape') {
+            // Cancel editing
+            const speakerElement = document.createElement('span');
+            speakerElement.className = 'speaker-tag editable-speaker';
+            speakerElement.onclick = () => editSpeaker(speakerElement, speakerIndex);
+            speakerElement.textContent = currentName;
+            input.replaceWith(speakerElement);
+        }
+    });
+    
+    input.addEventListener('blur', saveSpeaker);
+}
+
+// Save transcription to JSON file
+async function saveTranscriptionToFile() {
+    if (!selectedTranscription) return;
+    
+    try {
+        // Find the filename for the current transcription
+        const filename = getCurrentTranscriptionFilename();
+        if (!filename) {
+            console.error('Could not determine filename for current transcription');
+            return;
+        }
+        
+        // Create a copy without the _filename property for saving
+        const transcriptionToSave = { ...selectedTranscription };
+        delete transcriptionToSave._filename;
+        
+        const result = await pywebview.api.saveTranscription(filename, transcriptionToSave);
+        if (result.success) {
+            console.log('Transcription saved successfully');
+        } else {
+            console.error('Failed to save transcription:', result.message);
+        }
+    } catch (error) {
+        console.error('Error saving transcription:', error);
+    }
+}
+
+// Get filename for current transcription (use stored original filename)
+function getCurrentTranscriptionFilename() {
+    if (!selectedTranscription) return null;
+    
+    // Use the original filename that was stored when loading
+    return selectedTranscription._filename || null;
 }
 
 // Initialize the app when PyWebview is ready

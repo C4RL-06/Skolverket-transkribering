@@ -6,27 +6,27 @@
   "transcribedText": [
     {
       "text": "Välkommen alla till vårt kvartalsmöte för Q4-planering.",
-      "speaker": "Anna Andersson",
+      "speakerIndex": 0,
       "timestamp": "00:00:15"
     },
     {
       "text": "Tack Anna. Jag skulle vilja börja med att diskutera våra mål för nästa kvartal.",
-      "speaker": "Erik Johansson",
+      "speakerIndex": 1,
       "timestamp": "00:00:22"
     },
     {
       "text": "Absolut. Vi har identifierat tre huvudområden som vi behöver fokusera på.",
-      "speaker": "Maria Lindqvist",
+      "speakerIndex": 2,
       "timestamp": "00:00:35"
     },
     {
       "text": "Det första området är förbättring av våra befintliga processer.",
-      "speaker": "Anna Andersson",
+      "speakerIndex": 0,
       "timestamp": "00:00:42"
     },
     {
       "text": "Ja, och det andra är implementering av nya tekniska lösningar.",
-      "speaker": "Erik Johansson",
+      "speakerIndex": 1,
       "timestamp": "00:00:48"
     }
   ]
