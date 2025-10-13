@@ -272,6 +272,13 @@ function getCurrentTranscriptionFilename() {
 
 // Initialize the app when PyWebview is ready
 document.addEventListener('DOMContentLoaded', function() {
+    const newTranscriptionBtn = document.getElementById('newTranscriptionBtn');
+    if (newTranscriptionBtn) {
+        newTranscriptionBtn.addEventListener('click', () => {
+            window.location.href = 'newTranscription.html';
+        });
+    }
+
     // Wait for PyWebview to be ready before loading transcriptions
     if (typeof pywebview !== 'undefined' && pywebview.api) {
         loadTranscriptions();
