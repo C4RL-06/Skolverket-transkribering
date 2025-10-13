@@ -18,6 +18,12 @@ class Api:
         except Exception as e:
             return {"success": False, "message": str(e)}
 
+    def openFileDialog(self):
+        """ Open a file dialog and return the selected file path """
+        file_types = ('Audio Files (*.mp3;*.wav;*.m4a)', 'All files (*.*)')
+        result = window.create_file_dialog(webview.OPEN_DIALOG, allow_multiple=False, file_types=file_types)
+        return result
+
 def resource_path(relative_path):
     try:
         base_path = sys._MEIPASS
@@ -29,11 +35,13 @@ def main():
     html_file_path = resource_path('index.html')
     api = Api()
     
+    global window
     window = webview.create_window(
         'Skolverkets Transkriberingsapp',
         url=f'file://{html_file_path}',
         min_size=(600, 400),
-        js_api=api
+        js_api=api,
+        easy_drag=True # Enable drag and drop
     )
     
     webview.start(debug=False)
