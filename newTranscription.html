@@ -5,13 +5,14 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Ny Transkribering</title>
     <link rel="stylesheet" href="main.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
 <body>
     <div class="app-container">
         <!-- File Drop Zone -->
         <div class="file-drop-zone">
             <div class="file-drop-content">
-                <div class="upload-icon">↑</div>
+                <div class="upload-icon"><i class="fa-solid fa-file-arrow-up"></i></div>
                 <p>Choose audio and video files</p>
                 <input type="file" id="fileInput" multiple hidden>
             </div>
@@ -22,17 +23,21 @@
             <!-- Settings Card -->
             <div class="settings-card">
                 <div class="card-header">
-                    <span class="robot-icon">🤖</span>
+                    <span class="robot-icon"><i class="fa-solid fa-robot"></i></span>
                     <h2>Select Language & Model</h2>
                 </div>
                 <div class="form-group">
                     <select id="language-select">
                         <option>Swedish</option>
+                        <option>English</option>
+                        <option>Auto-detect (Uses more data)</option>
                     </select>
                 </div>
                 <div class="form-group">
                     <select id="model-select">
+                        <option>Small Model (Fast, less accurate)</option>
                         <option>Medium Model (Good results, slow)</option>
+                        <option>Large Model (Best results, very slow)</option>
                     </select>
                 </div>
                 <button class="start-transcribing-btn">Start transcribing</button>
@@ -47,7 +52,5 @@
             </div>
         </div>
     </div>
-
-    <!-- <script src="newTranscription.js"></script> -->
 </body>
 </html>
