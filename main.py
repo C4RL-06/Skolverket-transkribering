@@ -42,7 +42,7 @@ def main():
         url=f'file://{html_file_path}',
         min_size=(600, 400),
         js_api=api,
-        easy_drag=True # Enable drag and drop
+        easy_drag=True
     )
     
     webview.start(debug=False)
