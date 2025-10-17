@@ -6,10 +6,16 @@ document.addEventListener('DOMContentLoaded', function() {
     // Function to handle file selection
     function handleFileSelect(filePath) {
         if (filePath && filePath.length > 0) {
-            // In pywebview, the dialog returns a tuple/list. We'll take the first file.
-            const fileName = filePath[0].split('\\').pop().split('/').pop();
-            fileDropContent.textContent = `Selected file: ${fileName}`;
-            console.log('File selected:', filePath[0]);
+            // In pywebview, the dialog returns a tuple/list. Handle multiple files.
+            const fileNames = filePath.map(path => path.split('\\').pop().split('/').pop());
+            
+            if (fileNames.length === 1) {
+                fileDropContent.textContent = `Selected file: ${fileNames[0]}`;
+            } else {
+                fileDropContent.textContent = `Selected ${fileNames.length} files: ${fileNames.join(', ')}`;
+            }
+            
+            console.log('Files selected:', filePath);
         } else {
             fileDropContent.textContent = 'Choose audio and video files';
             console.log('File selection cancelled.');
