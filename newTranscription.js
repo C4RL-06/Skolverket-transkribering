@@ -2,10 +2,29 @@ document.addEventListener('DOMContentLoaded', function() {
     const fileDropZone = document.querySelector('.file-drop-zone');
     const fileDropContent = document.querySelector('.file-drop-content p');
     const fileInput = document.getElementById('fileInput');
-    const fileCardsContainer = document.querySelector('.file-cards-container');
+    const fileUploadContainer = document.querySelector('.file-upload-container');
     
     // Store file data for tracking progress
     const fileData = new Map();
+    let fileCardsContainer = null;
+
+    // Function to create file cards container if it doesn't exist
+    function ensureFileCardsContainer() {
+        if (!fileCardsContainer) {
+            fileCardsContainer = document.createElement('div');
+            fileCardsContainer.className = 'file-cards-container';
+            fileUploadContainer.insertBefore(fileCardsContainer, fileDropZone);
+        }
+        return fileCardsContainer;
+    }
+
+    // Function to remove file cards container if empty
+    function cleanupFileCardsContainer() {
+        if (fileCardsContainer && fileCardsContainer.children.length === 0) {
+            fileCardsContainer.remove();
+            fileCardsContainer = null;
+        }
+    }
 
     // Function to get file icon based on extension
     function getFileIcon(fileName) {
@@ -48,6 +67,8 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Function to update file progress
     function updateFileProgress(fileName, progress) {
+        if (!fileCardsContainer) return;
+        
         const fileCard = fileCardsContainer.querySelector(`[data-file-name="${fileName}"]`);
         if (fileCard) {
             const progressElement = fileCard.querySelector('.progress-percentage');
@@ -75,6 +96,9 @@ document.addEventListener('DOMContentLoaded', function() {
         if (filePath && filePath.length > 0) {
             // In pywebview, the dialog returns a tuple/list. Handle multiple files.
             const fileNames = filePath.map(path => path.split('\\').pop().split('/').pop());
+            
+            // Ensure file cards container exists
+            ensureFileCardsContainer();
             
             // Create file cards for each selected file
             fileNames.forEach((fileName, index) => {
