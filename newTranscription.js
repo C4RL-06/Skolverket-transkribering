@@ -59,10 +59,39 @@ document.addEventListener('DOMContentLoaded', function() {
             <div class="file-status">
                 <span class="progress-percentage">0%</span>
                 <i class="fa-solid fa-check completion-checkmark"></i>
+                <button class="remove-file-btn" title="Remove file">
+                    <i class="fa-solid fa-trash-can"></i>
+                </button>
             </div>
         `;
         
+        // Add click handler for remove button
+        const removeBtn = fileCard.querySelector('.remove-file-btn');
+        removeBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            removeFile(fileName);
+        });
+        
         return fileCard;
+    }
+
+    // Function to remove a file
+    function removeFile(fileName) {
+        // Remove from file data
+        fileData.delete(fileName);
+        
+        // Remove the file card from DOM
+        if (fileCardsContainer) {
+            const fileCard = fileCardsContainer.querySelector(`[data-file-name="${fileName}"]`);
+            if (fileCard) {
+                fileCard.remove();
+            }
+            
+            // Clean up container if empty
+            cleanupFileCardsContainer();
+        }
+        
+        console.log(`File removed: ${fileName}`);
     }
 
     // Function to update file progress

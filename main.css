@@ -522,6 +522,27 @@ select {
     visibility: hidden !important;
 }
 
+.remove-file-btn {
+    background-color: #4a4a4a;
+    color: white;
+    border: none;
+    border-radius: 50%;
+    width: 28px;
+    height: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: background-color 0.2s;
+    flex-shrink: 0;
+    font-size: 14px;
+    padding: 0;
+}
+
+.remove-file-btn:hover {
+    background-color: #c82333;
+}
+
 .progress-percentage {
     display: block;
 }
