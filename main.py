@@ -38,7 +38,7 @@ def main():
     
     global window
     window = webview.create_window(
-        'Skolverkets Transkriberingsapp',
+        'DeskScribe',
         url=f'file://{html_file_path}',
         min_size=(600, 400),
         js_api=api,

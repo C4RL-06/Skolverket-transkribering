@@ -2,6 +2,73 @@ document.addEventListener('DOMContentLoaded', function() {
     const fileDropZone = document.querySelector('.file-drop-zone');
     const fileDropContent = document.querySelector('.file-drop-content p');
     const fileInput = document.getElementById('fileInput');
+    const fileCardsContainer = document.querySelector('.file-cards-container');
+    
+    // Store file data for tracking progress
+    const fileData = new Map();
+
+    // Function to get file icon based on extension
+    function getFileIcon(fileName) {
+        const extension = fileName.split('.').pop().toLowerCase();
+        const iconMap = {
+            'mp3': 'fa-file-audio',
+            'wav': 'fa-file-audio',
+            'mp4': 'fa-file-video',
+            'avi': 'fa-file-video',
+            'mov': 'fa-file-video',
+            'm4a': 'fa-file-audio',
+            'flac': 'fa-file-audio',
+            'ogg': 'fa-file-audio'
+        };
+        return iconMap[extension] || 'fa-file';
+    }
+
+    // Function to create a file card
+    function createFileCard(fileName, filePath) {
+        const fileCard = document.createElement('div');
+        fileCard.className = 'file-card';
+        fileCard.dataset.fileName = fileName;
+        fileCard.dataset.filePath = filePath;
+        
+        const fileIcon = getFileIcon(fileName);
+        
+        fileCard.innerHTML = `
+            <div class="file-card-info">
+                <i class="fa-solid ${fileIcon} file-icon"></i>
+                <span class="file-name">${fileName}</span>
+            </div>
+            <div class="file-status">
+                <span class="progress-percentage">0%</span>
+                <i class="fa-solid fa-check completion-checkmark"></i>
+            </div>
+        `;
+        
+        return fileCard;
+    }
+
+    // Function to update file progress
+    function updateFileProgress(fileName, progress) {
+        const fileCard = fileCardsContainer.querySelector(`[data-file-name="${fileName}"]`);
+        if (fileCard) {
+            const progressElement = fileCard.querySelector('.progress-percentage');
+            if (progress >= 100) {
+                fileCard.classList.add('completed');
+                // Update file data
+                if (fileData.has(fileName)) {
+                    fileData.get(fileName).progress = 100;
+                    fileData.get(fileName).completed = true;
+                }
+            } else {
+                fileCard.classList.remove('completed');
+                progressElement.textContent = `${Math.round(progress)}%`;
+                // Update file data
+                if (fileData.has(fileName)) {
+                    fileData.get(fileName).progress = progress;
+                    fileData.get(fileName).completed = false;
+                }
+            }
+        }
+    }
 
     // Function to handle file selection
     function handleFileSelect(filePath) {
@@ -9,15 +76,21 @@ document.addEventListener('DOMContentLoaded', function() {
             // In pywebview, the dialog returns a tuple/list. Handle multiple files.
             const fileNames = filePath.map(path => path.split('\\').pop().split('/').pop());
             
-            if (fileNames.length === 1) {
-                fileDropContent.textContent = `Selected file: ${fileNames[0]}`;
-            } else {
-                fileDropContent.textContent = `Selected ${fileNames.length} files: ${fileNames.join(', ')}`;
-            }
+            // Create file cards for each selected file
+            fileNames.forEach((fileName, index) => {
+                const fileCard = createFileCard(fileName, filePath[index]);
+                fileCardsContainer.appendChild(fileCard);
+                
+                // Store file data
+                fileData.set(fileName, {
+                    path: filePath[index],
+                    progress: 0,
+                    completed: false
+                });
+            });
             
             console.log('Files selected:', filePath);
         } else {
-            fileDropContent.textContent = 'Choose audio and video files';
             console.log('File selection cancelled.');
         }
     }
@@ -50,4 +123,8 @@ document.addEventListener('DOMContentLoaded', function() {
             handleFileSelect(paths);
         }
     });
+
+    // Make functions available globally for transcription progress updates
+    window.updateFileProgress = updateFileProgress;
+    window.getFileData = () => fileData;
 });
