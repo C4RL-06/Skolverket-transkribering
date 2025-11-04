@@ -55,7 +55,7 @@ const translations = {
         languageOption2: 'Engelska',
         languageOption3: 'Automatisk (Använder mer data)',
         modelOption1: 'Liten Modell (Snabb, mindre exakt)',
-        modelOption2: 'Medium Modell Medium Modell (Bra resultat, långsam)',
+        modelOption2: 'Medium Modell (Bra resultat, långsam)',
         modelOption3: 'Stor Modell (Bäst resultat, väldigt långsam)'
     },
     en: {

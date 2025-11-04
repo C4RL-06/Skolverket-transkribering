@@ -180,4 +180,159 @@ document.addEventListener('DOMContentLoaded', function() {
     // Make functions available globally for transcription progress updates
     window.updateFileProgress = updateFileProgress;
     window.getFileData = () => fileData;
+    
+    // Transcription functionality
+    const startTranscribingBtn = document.querySelector('.start-transcribing-btn');
+    const activityContent = document.querySelector('.activity-content');
+    let progressInterval = null;
+    const loggedErrors = new Set();  // Track which errors we've already logged
+    
+    // Add activity log message
+    function addActivityLog(message, type = 'info') {
+        if (!activityContent) return;
+        
+        const logEntry = document.createElement('div');
+        logEntry.className = `activity-log-entry activity-log-${type}`;
+        logEntry.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+        activityContent.appendChild(logEntry);
+        activityContent.scrollTop = activityContent.scrollHeight;
+    }
+    
+    // Start transcription
+    async function startTranscription() {
+        // Clear previous error logs
+        loggedErrors.clear();
+        
+        if (fileData.size === 0) {
+            addActivityLog('No files selected. Please add files first.', 'error');
+            return;
+        }
+        
+        // Get language and model settings
+        const languageSelect = document.getElementById('language-select');
+        const modelSelect = document.getElementById('model-select');
+        
+        if (!languageSelect || !modelSelect) {
+            addActivityLog('Settings not found', 'error');
+            return;
+        }
+        
+        // Map UI selections to API values
+        const languageMap = {
+            'Svenska': 'sv',
+            'Engelska': 'en',
+            'Automatisk (Använder mer data)': 'auto',
+            'Swedish': 'sv',
+            'English': 'en',
+            'Automatic (Uses more data)': 'auto'
+        };
+        
+        const modelMap = {
+            'Liten Modell (Snabb, mindre exakt)': 'tiny',
+            'Medium Modell (Bra resultat, långsam)': 'medium',
+            'Stor Modell (Bäst resultat, väldigt långsam)': 'large',
+            'Small Model (Fast, less accurate)': 'tiny',
+            'Medium Model (Good results, slow)': 'medium',
+            'Big Model (Best results, very slow)': 'large'
+        };
+        
+        const language = languageMap[languageSelect.value] || 'sv';
+        let modelSize = modelMap[modelSelect.value];
+        
+        // Handle fallback if mapping fails
+        if (!modelSize) {
+            const modelIndex = modelSelect.selectedIndex;
+            const modelSizes = ['tiny', 'medium', 'large'];
+            modelSize = modelSizes[modelIndex] || 'medium';
+        }
+        
+        // Get all file paths
+        const filePaths = Array.from(fileData.values()).map(f => f.path);
+        
+        addActivityLog(`Starting transcription for ${filePaths.length} file(s)...`);
+        addActivityLog(`Language: ${languageSelect.value}, Model: ${modelSelect.value}`);
+        
+        // Disable button
+        startTranscribingBtn.disabled = true;
+        startTranscribingBtn.textContent = 'Transcribing...';
+        
+        try {
+            // Start transcription
+            const result = await pywebview.api.startTranscription(filePaths, language, modelSize);
+            
+            if (result.success) {
+                addActivityLog(result.message, 'success');
+                
+                // Start polling for progress
+                startProgressPolling();
+            } else {
+                addActivityLog(`Error: ${result.message}`, 'error');
+                startTranscribingBtn.disabled = false;
+                startTranscribingBtn.textContent = 'Starta transkribering';
+            }
+        } catch (error) {
+            addActivityLog(`Error starting transcription: ${error}`, 'error');
+            startTranscribingBtn.disabled = false;
+            startTranscribingBtn.textContent = 'Starta transkribering';
+        }
+    }
+    
+    // Poll for progress updates
+    function startProgressPolling() {
+        if (progressInterval) {
+            clearInterval(progressInterval);
+        }
+        
+        progressInterval = setInterval(async () => {
+            try {
+                const allProgress = await pywebview.api.getAllProgress();
+                
+                // Check if all jobs are complete
+                let allComplete = true;
+                let hasActive = false;
+                
+                for (const [filePath, progress] of Object.entries(allProgress)) {
+                    const fileName = filePath.split('\\').pop().split('/').pop();
+                    
+                    if (progress.status === 'processing' || progress.status === 'pending') {
+                        allComplete = false;
+                        hasActive = true;
+                        updateFileProgress(fileName, progress.progress);
+                    } else if (progress.status === 'completed') {
+                        updateFileProgress(fileName, 100);
+                    } else if (progress.status === 'error') {
+                        // Only log error once per file
+                        const errorKey = `${filePath}:${progress.message}`;
+                        if (!loggedErrors.has(errorKey)) {
+                            addActivityLog(`Error transcribing ${fileName}: ${progress.message}`, 'error');
+                            loggedErrors.add(errorKey);
+                        }
+                        allComplete = false;
+                    }
+                }
+                
+                // If all complete, stop polling
+                if (!hasActive && allComplete) {
+                    clearInterval(progressInterval);
+                    progressInterval = null;
+                    startTranscribingBtn.disabled = false;
+                    startTranscribingBtn.textContent = 'Starta transkribering';
+                    addActivityLog('All transcriptions completed!', 'success');
+                }
+            } catch (error) {
+                console.error('Error polling progress:', error);
+            }
+        }, 1000); // Poll every second
+    }
+    
+    // Handle transcription completion callback
+    window.onTranscriptionComplete = function(fileName) {
+        addActivityLog(`Transcription complete: ${fileName}`, 'success');
+        updateFileProgress(fileName, 100);
+    };
+    
+    // Add event listener for start button
+    if (startTranscribingBtn) {
+        startTranscribingBtn.addEventListener('click', startTranscription);
+    }
 });
