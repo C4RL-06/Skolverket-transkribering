@@ -768,7 +768,11 @@ body.dark-mode .transcription-card:hover {
 }
 
 body.dark-mode .transcription-card.active {
-    border-color: #0d6efd;
+    border-color: #f50dfd;
+}
+
+body.dark-mode .entry-speaker {
+    color: #f176f5;
 }
 
 body.dark-mode .separator {
@@ -797,4 +801,10 @@ body.dark-mode .settings-icon-btn:hover,
 body.dark-mode .close-modal-btn:hover,
 body.dark-mode .back-button:hover {
     background-color: #404040;
+}
+
+body.dark-mode .speaker-tag {
+    background-color: #404040;
+    color: #e0e0e0;
+    border-color: #555;
 }
