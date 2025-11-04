@@ -808,3 +808,7 @@ body.dark-mode .speaker-tag {
     color: #e0e0e0;
     border-color: #555;
 }
+
+body.dark-mode .robot-icon {
+    color: #c6c6c6;
+}
