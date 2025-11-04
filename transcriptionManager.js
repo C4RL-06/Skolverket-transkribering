@@ -279,6 +279,32 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
+    // Settings modal functionality
+    const settingsBtn = document.getElementById('settingsBtn');
+    const settingsModal = document.getElementById('settingsModal');
+    const closeModalBtn = document.getElementById('closeModalBtn');
+
+    if (settingsBtn && settingsModal) {
+        settingsBtn.addEventListener('click', () => {
+            settingsModal.classList.add('show');
+        });
+    }
+
+    if (closeModalBtn && settingsModal) {
+        closeModalBtn.addEventListener('click', () => {
+            settingsModal.classList.remove('show');
+        });
+    }
+
+    // Close modal when clicking outside
+    if (settingsModal) {
+        settingsModal.addEventListener('click', (e) => {
+            if (e.target === settingsModal) {
+                settingsModal.classList.remove('show');
+            }
+        });
+    }
+
     // Wait for PyWebview to be ready before loading transcriptions
     if (typeof pywebview !== 'undefined' && pywebview.api) {
         loadTranscriptions();
