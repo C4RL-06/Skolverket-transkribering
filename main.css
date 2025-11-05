@@ -850,3 +850,7 @@ body.dark-mode .speaker-tag {
 body.dark-mode .robot-icon {
     color: #c6c6c6;
 }
+
+body.dark-mode .activity-content {
+    color: #c6c6c6;
+}
