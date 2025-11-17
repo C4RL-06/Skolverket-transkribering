@@ -216,8 +216,7 @@ function editText(textElement, entryIndex) {
     }
     
     textarea.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter' && !e.shiftKey) {
-            // Enter (without Shift) saves the text
+        if (e.key === 'Enter') {
             e.preventDefault();
             saveText();
         } else if (e.key === 'Escape') {
@@ -229,7 +228,6 @@ function editText(textElement, entryIndex) {
             textElement.textContent = currentText;
             textarea.replaceWith(textElement);
         }
-        // Shift+Enter allows creating new lines in the textarea
     });
     
     textarea.addEventListener('blur', saveText);
