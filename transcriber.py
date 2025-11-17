@@ -496,6 +496,16 @@ class TranscriptionEngine:
                 "timestamp": timestamp
             })
         
+        # Merge consecutive entries from the same speaker to make frontend look better :p
+        merged_text = []
+        for entry in transcribed_text:
+            if merged_text and merged_text[-1]["speakerIndex"] == entry["speakerIndex"]:
+                # Merge with previous entry: combine text, keep original timestamp
+                merged_text[-1]["text"] += " " + entry["text"]
+            else:
+                # New entry (different speaker or first entry)
+                merged_text.append(entry)
+        
         filename = Path(job.file_path).stem
         date_str = datetime.now().strftime("%Y-%m-%d")
         
@@ -505,7 +515,7 @@ class TranscriptionEngine:
             speakers=speakers,
             date=date_str,
             audio_path=f"./audio/{Path(job.file_path).name}",
-            transcribed_text=transcribed_text
+            transcribed_text=merged_text
         )
     
     @staticmethod
