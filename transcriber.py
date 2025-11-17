@@ -64,6 +64,7 @@ class TranscriptionResult:
     title: str
     speakers: List[str]
     date: str
+    time: str
     audio_path: str
     transcribed_text: List[Dict[str, Any]]
     error: Optional[str] = None
@@ -188,7 +189,7 @@ class SpeakerDiarizer:
         
         for i, segment in enumerate(transcription_segments):
             start, end = self._get_timestamps(segment)
-            if not start or not end or end <= start:
+            if start is None or end is None or end <= start:
                 continue
             
             segment_audio = self._extract_segment(audio, start, end, sample_rate)
@@ -224,7 +225,7 @@ class SpeakerDiarizer:
         
         for segment in transcription_segments:
             start, end = self._get_timestamps(segment)
-            if not start or not end:
+            if start is None or end is None:
                 continue
             
             if label_idx < len(valid_segments):
@@ -338,9 +339,12 @@ class SpeakerDiarizer:
 class TranscriptionEngine:
     """Main transcription engine coordinating all components."""
     
-    def __init__(self, output_dir: str = "transcription files"):
-        self.output_dir = Path(output_dir)
-        self.output_dir.mkdir(exist_ok=True)
+    def __init__(self, output_base_dir: Optional[str] = None):
+        if output_base_dir is None:
+            # Use Documents/TrustScribe as default
+            output_base_dir = Path.home() / "Documents" / "TrustScribe"
+        self.output_base_dir = Path(output_base_dir)
+        self.output_base_dir.mkdir(parents=True, exist_ok=True)
         self.model_manager = ModelManager()
         self.diarizer = SpeakerDiarizer()
         self.temp_dir = Path(tempfile.mkdtemp())
@@ -360,13 +364,12 @@ class TranscriptionEngine:
             if not AudioConverter.is_supported_format(job.file_path):
                 raise ValueError(f"Unsupported file format: {Path(job.file_path).suffix}")
             
-            audio_path = job.file_path
-            temp_audio = None
+            # Always convert to WAV for processing and saving
+            if progress_callback:
+                progress_callback(0.16, "Converting audio to WAV format...")
             
-            if AudioConverter.needs_conversion(audio_path):
-                wav_path = str(self.temp_dir / f"{Path(audio_path).stem}.wav")
-                audio_path = AudioConverter.convert_to_wav(job.file_path, wav_path)
-                temp_audio = audio_path
+            wav_path = str(self.temp_dir / f"{Path(job.file_path).stem}.wav")
+            audio_path = AudioConverter.convert_to_wav(job.file_path, wav_path)
             
             audio_duration = AudioConverter.get_audio_duration(audio_path)
             
@@ -425,11 +428,7 @@ class TranscriptionEngine:
             if progress_callback:
                 progress_callback(0.98, "Finalizing...")
             
-            result = self._format_result(job, combined, job.file_path)
-            
-            # Cleanup
-            if temp_audio and Path(temp_audio).exists():
-                Path(temp_audio).unlink()
+            result = self._format_result(job, combined, audio_path)
             
             if progress_callback:
                 progress_callback(1.0, "Complete!")
@@ -439,7 +438,7 @@ class TranscriptionEngine:
         except Exception as e:
             return TranscriptionResult(
                 file_path=job.file_path,
-                title="", speakers=[], date="", audio_path="",
+                title="", speakers=[], date="", time="", audio_path="",
                 transcribed_text=[], error=str(e)
             )
     
@@ -464,7 +463,7 @@ class TranscriptionEngine:
             start, end = segment.get("start", 0), segment.get("end", 0)
             text = segment.get("text", "").strip()
             
-            if not start or not end or not text:
+            if start is None or end is None or not text:
                 continue
             
             key = (round(start, 3), round(end, 3))
@@ -482,7 +481,7 @@ class TranscriptionEngine:
         return combined
     
     def _format_result(self, job: TranscriptionJob, combined: List[Dict],
-                       audio_path: str) -> TranscriptionResult:
+                       wav_audio_path: str) -> TranscriptionResult:
         """Format result into expected JSON structure."""
         speakers = sorted(list(set(entry["speaker"] for entry in combined)))
         speaker_map = {speaker: idx for idx, speaker in enumerate(speakers)}
@@ -507,14 +506,18 @@ class TranscriptionEngine:
                 merged_text.append(entry)
         
         filename = Path(job.file_path).stem
-        date_str = datetime.now().strftime("%Y-%m-%d")
+        now = datetime.now()
+        date_str = now.strftime("%Y-%m-%d")
+        time_str = now.strftime("%H:%M")
         
+        # Store the WAV path for saving later
         return TranscriptionResult(
             file_path=job.file_path,
             title=filename.replace("_", " ").title(),
             speakers=speakers,
             date=date_str,
-            audio_path=f"./audio/{Path(job.file_path).name}",
+            time=time_str,
+            audio_path=wav_audio_path,  # Store the WAV path temporarily
             transcribed_text=merged_text
         )
     
@@ -526,28 +529,54 @@ class TranscriptionEngine:
         secs = int(seconds % 60)
         return f"{hours:02d}:{minutes:02d}:{secs:02d}"
     
-    def save_result(self, result: TranscriptionResult, filename: Optional[str] = None):
-        """Save transcription result to JSON file."""
+    def save_result(self, result: TranscriptionResult, folder_name: Optional[str] = None):
+        """Save transcription result to a folder with JSON and WAV files."""
         if result.error:
             raise ValueError(f"Cannot save transcription with error: {result.error}")
         
-        if filename is None:
-            filename = f"{Path(result.file_path).stem}_{result.date}.json"
+        # Create folder name for this transcription
+        if folder_name is None:
+            # Use title to create folder name
+            safe_title = "".join(c for c in result.title if c.isalnum() or c in (' ', '-', '_')).strip()
+            safe_title = safe_title.replace(' ', '_')
+            base_folder_name = safe_title
+            
+            # Handle duplicate folder names by appending a number
+            folder_name = base_folder_name
+            counter = 1
+            while (self.output_base_dir / folder_name).exists():
+                folder_name = f"{base_folder_name}_{counter}"
+                counter += 1
         
-        output_path = self.output_dir / filename
+        # Create transcription folder
+        transcription_folder = self.output_base_dir / folder_name
+        transcription_folder.mkdir(parents=True, exist_ok=True)
+        
+        # Copy WAV file to transcription folder
+        wav_source = Path(result.audio_path)
+        wav_dest = transcription_folder / "audio.wav"
+        if wav_source.exists():
+            shutil.copy2(wav_source, wav_dest)
+        
+        # Save JSON file
+        json_path = transcription_folder / "transcription.json"
+        
+        # Update audioPath to be relative to the JSON file
+        audio_path_relative = "audio.wav"
         
         data = {
             "title": result.title,
             "speakers": result.speakers,
             "date": result.date,
-            "audioPath": result.audio_path,
+            "time": result.time,
+            "audioPath": audio_path_relative,
             "transcribedText": result.transcribed_text
         }
         
-        with open(output_path, 'w', encoding='utf-8') as f:
+        with open(json_path, 'w', encoding='utf-8') as f:
             json.dump(data, f, indent=2, ensure_ascii=False)
         
-        return str(output_path)
+        return str(json_path)
     
     def cleanup(self):
         """Clean up temporary files."""

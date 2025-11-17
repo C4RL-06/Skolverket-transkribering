@@ -28,17 +28,80 @@ class Api:
         return _engine_cache[engine_id]
     
     def getTranscriptionFiles(self):
-        json_files = glob.glob('transcription files/*.json')
-        return [os.path.basename(file) for file in json_files]
+        """Get all transcription JSON files from Documents/TrustScribe subfolders."""
+        base_dir = Path.home() / "Documents" / "TrustScribe"
+        json_files = []
+        
+        if base_dir.exists():
+            # Scan for transcription.json files in subfolders
+            for json_file in base_dir.rglob("transcription.json"):
+                # Get relative path from base_dir (e.g., "FolderName/transcription.json")
+                relative_path = json_file.relative_to(base_dir)
+                json_files.append(str(relative_path))
+        
+        return json_files
     
-    def saveTranscription(self, filename, transcriptionData):
+    def saveTranscription(self, relative_path, transcriptionData):
+        """
+        Save transcription data to a file.
+        
+        Args:
+            relative_path: Relative path from TrustScribe base (e.g., "FolderName/transcription.json")
+            transcriptionData: The transcription data to save
+        """
         try:
-            filepath = os.path.join('transcription files', filename)
+            base_dir = Path.home() / "Documents" / "TrustScribe"
+            filepath = base_dir / relative_path
+            
+            # Ensure parent directory exists
+            filepath.parent.mkdir(parents=True, exist_ok=True)
+            
             with open(filepath, 'w', encoding='utf-8') as f:
                 json.dump(transcriptionData, f, indent=2, ensure_ascii=False)
             return {"success": True, "message": "Transcription saved successfully"}
         except Exception as e:
             return {"success": False, "message": str(e)}
+    
+    def getTranscriptionFileContent(self, relative_path):
+        """
+        Get the content of a transcription file.
+        Used by the frontend to load transcription data.
+        
+        Args:
+            relative_path: Relative path from TrustScribe base (e.g., "FolderName/transcription.json")
+        
+        Returns:
+            Dict with success status and file content or error message
+        """
+        try:
+            base_dir = Path.home() / "Documents" / "TrustScribe"
+            filepath = base_dir / relative_path
+            
+            if not filepath.exists():
+                return {"success": False, "message": f"File not found: {relative_path}"}
+            
+            with open(filepath, 'r', encoding='utf-8') as f:
+                content = json.load(f)
+            
+            return {"success": True, "content": content}
+        except Exception as e:
+            return {"success": False, "message": str(e)}
+    
+    def getAudioFilePath(self, transcription_relative_path, audio_relative_path):
+        """
+        Get the full path to an audio file for serving.
+        
+        Args:
+            transcription_relative_path: Relative path to transcription folder (e.g., "FolderName/transcription.json")
+            audio_relative_path: Relative path to audio from transcription folder (e.g., "audio.wav")
+        
+        Returns:
+            Full absolute path to the audio file
+        """
+        base_dir = Path.home() / "Documents" / "TrustScribe"
+        transcription_folder = base_dir / Path(transcription_relative_path).parent
+        audio_path = transcription_folder / audio_relative_path
+        return str(audio_path)
 
     def openFileDialog(self):
         """Open a file dialog and return the selected file path"""
@@ -137,9 +200,8 @@ class Api:
                 self.active_jobs[file_path]["status"] = "error"
                 self.active_jobs[file_path]["message"] = result.error
             else:
-                # Save result
-                filename = f"{Path(file_path).stem}_{result.date}.json"
-                engine.save_result(result, filename)
+                # Save result (creates folder and saves both JSON and WAV)
+                engine.save_result(result)
                 
                 self.active_jobs[file_path]["status"] = "completed"
                 self.active_jobs[file_path]["progress"] = 100.0
@@ -163,7 +225,7 @@ def main():
     window = webview.create_window(
         'TrustScribe',
         url=f'file://{html_file_path}',
-        min_size=(600, 400),
+        min_size=(800, 600),
         js_api=api,
         easy_drag=True
     )

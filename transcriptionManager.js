@@ -26,16 +26,16 @@ async function loadTranscriptions() {
         console.log('Found files:', fileList);
         
         transcriptionsData = [];
-        for (const filename of fileList) {
-            console.log('Loading file:', filename);
-            const transcriptionResponse = await fetch(`transcription files/${filename}`);
-            if (!transcriptionResponse.ok) {
-                console.error(`Failed to fetch ${filename}:`, transcriptionResponse.status);
+        for (const relativePath of fileList) {
+            console.log('Loading file:', relativePath);
+            const result = await pywebview.api.getTranscriptionFileContent(relativePath);
+            if (!result.success) {
+                console.error(`Failed to load ${relativePath}:`, result.message);
                 continue;
             }
-            const transcriptionData = await transcriptionResponse.json();
-            // Store the original filename with the transcription data
-            transcriptionData._filename = filename;
+            const transcriptionData = result.content;
+            // Store the relative path with the transcription data for saving later
+            transcriptionData._relativePath = relativePath;
             transcriptionsData.push(transcriptionData);
         }
         
@@ -52,7 +52,23 @@ function renderTranscriptionList() {
     const listContainer = document.getElementById('transcriptionList');
     listContainer.innerHTML = '';
 
-    transcriptionsData.forEach((transcription, index) => {
+    // Sort by recency (most recent first)
+    const sortedTranscriptions = [...transcriptionsData].sort((a, b) => {
+        // Compare by date first (YYYY-MM-DD format sorts correctly with localeCompare)
+        const dateA = a.date || '0000-00-00';
+        const dateB = b.date || '0000-00-00';
+        if (dateA !== dateB) {
+            return dateB.localeCompare(dateA); // Most recent date first
+        }
+        // If same date, compare by time (HH:MM format sorts correctly)
+        const timeA = a.time || '00:00';
+        const timeB = b.time || '00:00';
+        return timeB.localeCompare(timeA); // Most recent time first
+    });
+
+    sortedTranscriptions.forEach((transcription, originalIndex) => {
+        // Find original index for selection
+        const index = transcriptionsData.indexOf(transcription);
         console.log('Creating card for:', transcription.title);
         const card = createTranscriptionCard(transcription, index);
         listContainer.appendChild(card);
@@ -65,9 +81,10 @@ function createTranscriptionCard(transcription, index) {
     card.className = 'transcription-card';
     card.onclick = () => selectTranscription(index);
     
+    const dateTime = transcription.time ? `${transcription.date} ${transcription.time}` : transcription.date;
     card.innerHTML = `
         <div class="card-title">${transcription.title}</div>
-        <div class="card-date">${transcription.date}</div>
+        <div class="card-date">${dateTime}</div>
     `;
     
     return card;
@@ -96,6 +113,11 @@ function renderTranscriptionContent() {
                 <p>Välj en transkribering från vänster panel för att visa innehållet</p>
             </div>
         `;
+        // Remove audio player if it exists
+        const existingPlayer = document.querySelector('.audio-player-container');
+        if (existingPlayer) {
+            existingPlayer.remove();
+        }
         return;
     }
     
@@ -114,10 +136,11 @@ function renderTranscriptionContent() {
             </div>
         `).join('');
     
+    const dateTime = selectedTranscription.time ? `${selectedTranscription.date} ${selectedTranscription.time}` : selectedTranscription.date;
     contentContainer.innerHTML = `
         <div class="content-header">
             <h1 class="content-title editable-title" onclick="editTitle(this)">${selectedTranscription.title}</h1>
-            <span class="content-date">${selectedTranscription.date}</span>
+            <span class="content-date">${dateTime}</span>
         </div>
         
         <div class="speakers-container">
@@ -129,7 +152,28 @@ function renderTranscriptionContent() {
         <div class="transcription-content">
             ${transcriptionEntriesHtml}
         </div>
+        
+        <div class="audio-player-container">
+            <audio id="transcriptionAudio" preload="metadata"></audio>
+            <div class="audio-player">
+                <button class="audio-play-pause-btn" id="audioPlayPauseBtn">
+                    <i class="fa-solid fa-play"></i>
+                </button>
+                <button class="audio-autoscroll-btn" id="audioAutoscrollBtn" title="Toggle auto-scroll">
+                    <i class="fa-solid fa-arrows-up-down"></i>
+                </button>
+                <input type="range" class="audio-seekbar" id="audioSeekbar" min="0" max="0" value="0" step="0.1">
+                <div class="audio-timestamps" id="audioTimestamps">
+                    <span class="current-time">0:00</span>
+                    <span class="time-separator"> / </span>
+                    <span class="total-time">0:00</span>
+                </div>
+            </div>
+        </div>
     `;
+    
+    // Initialize audio player after rendering (always, even without audio file for testing)
+    initializeAudioPlayer(selectedTranscription);
 }
 
 // Edit title functionality
@@ -288,18 +332,18 @@ async function saveTranscriptionToFile() {
     if (!selectedTranscription) return;
     
     try {
-        // Find the filename for the current transcription
-        const filename = getCurrentTranscriptionFilename();
-        if (!filename) {
-            console.error('Could not determine filename for current transcription');
+        // Find the relative path for the current transcription
+        const relativePath = getCurrentTranscriptionRelativePath();
+        if (!relativePath) {
+            console.error('Could not determine relative path for current transcription');
             return;
         }
         
-        // Create a copy without the _filename property for saving
+        // Create a copy without the _relativePath property for saving
         const transcriptionToSave = { ...selectedTranscription };
-        delete transcriptionToSave._filename;
+        delete transcriptionToSave._relativePath;
         
-        const result = await pywebview.api.saveTranscription(filename, transcriptionToSave);
+        const result = await pywebview.api.saveTranscription(relativePath, transcriptionToSave);
         if (result.success) {
             console.log('Transcription saved successfully');
         } else {
@@ -310,12 +354,241 @@ async function saveTranscriptionToFile() {
     }
 }
 
-// Get filename for current transcription (use stored original filename)
-function getCurrentTranscriptionFilename() {
+// Get relative path for current transcription (use stored relative path)
+function getCurrentTranscriptionRelativePath() {
     if (!selectedTranscription) return null;
     
-    // Use the original filename that was stored when loading
-    return selectedTranscription._filename || null;
+    // Use the relative path that was stored when loading
+    return selectedTranscription._relativePath || null;
+}
+
+// Auto-scroll state
+let autoScrollEnabled = false;
+let lastScrolledIndex = -1;
+let scrollThrottle = null;
+
+// Initialize audio player functionality
+async function initializeAudioPlayer(transcription) {
+    const audio = document.getElementById('transcriptionAudio');
+    const playPauseBtn = document.getElementById('audioPlayPauseBtn');
+    const autoscrollBtn = document.getElementById('audioAutoscrollBtn');
+    const seekbar = document.getElementById('audioSeekbar');
+    const currentTimeSpan = document.querySelector('.current-time');
+    const totalTimeSpan = document.querySelector('.total-time');
+    
+    if (!audio || !playPauseBtn || !seekbar) return;
+    
+    // Reset auto-scroll state
+    autoScrollEnabled = false;
+    lastScrolledIndex = -1;
+    if (scrollThrottle !== null) {
+        clearTimeout(scrollThrottle);
+        scrollThrottle = null;
+    }
+    
+    // Auto-scroll toggle button
+    if (autoscrollBtn) {
+        autoscrollBtn.addEventListener('click', () => {
+            autoScrollEnabled = !autoScrollEnabled;
+            autoscrollBtn.classList.toggle('active', autoScrollEnabled);
+            if (autoScrollEnabled) {
+                lastScrolledIndex = -1; // Reset to allow immediate scroll
+                if (!audio.paused && audio.currentTime > 0) {
+                    scrollToCurrentTimestamp(audio.currentTime);
+                }
+            }
+        });
+    }
+    
+    // Set audio source if available
+    if (transcription && transcription.audioPath && transcription._relativePath) {
+        try {
+            const audioPath = await pywebview.api.getAudioFilePath(
+                transcription._relativePath,
+                transcription.audioPath
+            );
+            // Use file:// protocol for local file access
+            audio.src = `file:///${audioPath.replace(/\\/g, '/')}`;
+        } catch (error) {
+            console.error('Error loading audio file:', error);
+        }
+    }
+    
+    // Update total time when metadata is loaded
+    audio.addEventListener('loadedmetadata', () => {
+        if (audio.duration && !isNaN(audio.duration) && isFinite(audio.duration)) {
+            if (totalTimeSpan) {
+                totalTimeSpan.textContent = formatAudioTime(audio.duration);
+            }
+            if (seekbar) {
+                seekbar.max = audio.duration;
+            }
+        }
+    });
+    
+    // Update current time while playing
+    audio.addEventListener('timeupdate', () => {
+        const currentTime = audio.currentTime || 0;
+        if (currentTimeSpan) {
+            currentTimeSpan.textContent = formatAudioTime(currentTime);
+        }
+        if (seekbar && audio.duration) {
+            seekbar.value = currentTime;
+        }
+        // Auto-scroll if enabled and playing (throttled for smooth scrolling)
+        if (autoScrollEnabled && !audio.paused && scrollThrottle === null) {
+            scrollThrottle = setTimeout(() => {
+                scrollToCurrentTimestamp(currentTime);
+                scrollThrottle = null;
+            }, 300);
+        }
+    });
+    
+    // Update button icon when playback state changes
+    audio.addEventListener('play', () => {
+        if (playPauseBtn) {
+            playPauseBtn.innerHTML = '<i class="fa-solid fa-pause"></i>';
+        }
+        // Start scrolling if auto-scroll is enabled
+        if (autoScrollEnabled) {
+            lastScrolledIndex = -1; // Reset to allow immediate scroll
+            scrollToCurrentTimestamp(audio.currentTime);
+        }
+    });
+    
+    audio.addEventListener('pause', () => {
+        if (playPauseBtn) {
+            playPauseBtn.innerHTML = '<i class="fa-solid fa-play"></i>';
+        }
+    });
+    
+    // Play/pause button click handler
+    playPauseBtn.addEventListener('click', () => {
+        toggleAudioPlayPause(audio);
+    });
+    
+    // Helper function to toggle audio play/pause
+    window.toggleAudioPlayPause = function() {
+        const audioElement = document.getElementById('transcriptionAudio');
+        if (audioElement) {
+            toggleAudioPlayPause(audioElement);
+        }
+    };
+    
+    function toggleAudioPlayPause(audioElement) {
+        if (audioElement.src && audioElement.src !== window.location.href) {
+            if (audioElement.paused) {
+                audioElement.play();
+            } else {
+                audioElement.pause();
+            }
+        }
+    }
+    
+    // Seekbar change handler
+    seekbar.addEventListener('input', () => {
+        const seekTime = parseFloat(seekbar.value);
+        if (audio.src && audio.src !== window.location.href && audio.duration) {
+            audio.currentTime = seekTime;
+        }
+        // Update scroll position if auto-scroll is enabled
+        if (autoScrollEnabled) {
+            scrollToCurrentTimestamp(seekTime);
+            lastScrolledIndex = -1; // Force re-scroll
+        }
+    });
+}
+
+// Format time in seconds to MM:SS or H:MM:SS format
+function formatAudioTime(seconds) {
+    if (isNaN(seconds) || seconds < 0) return '0:00';
+    
+    const hours = Math.floor(seconds / 3600);
+    const minutes = Math.floor((seconds % 3600) / 60);
+    const secs = Math.floor(seconds % 60);
+    
+    if (hours > 0) {
+        return `${hours}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+    } else {
+        return `${minutes}:${secs.toString().padStart(2, '0')}`;
+    }
+}
+
+// Convert timestamp string (HH:MM:SS) to seconds
+function timestampToSeconds(timestamp) {
+    const parts = timestamp.split(':').map(Number);
+    if (parts.length !== 3) return 0;
+    return parts[0] * 3600 + parts[1] * 60 + parts[2];
+}
+
+// Find the transcription entry index for a given timestamp
+function findEntryIndexForTimestamp(timestampSeconds) {
+    if (!selectedTranscription || !selectedTranscription.transcribedText) {
+        return -1;
+    }
+    
+    let bestIndex = -1;
+    let bestTime = -1;
+    
+    for (let i = 0; i < selectedTranscription.transcribedText.length; i++) {
+        const entry = selectedTranscription.transcribedText[i];
+        const entryTime = timestampToSeconds(entry.timestamp);
+        
+        // Find the entry where the timestamp is <= current time
+        // This finds the most recent entry that has started
+        if (entryTime <= timestampSeconds && entryTime > bestTime) {
+            bestTime = entryTime;
+            bestIndex = i;
+        }
+    }
+    
+    // If no match found, return first entry (for very early timestamps)
+    if (bestIndex < 0) {
+        return 0;
+    }
+    
+    return bestIndex;
+}
+
+// Scroll to the transcription entry matching the current audio timestamp
+function scrollToCurrentTimestamp(currentTimeSeconds) {
+    const scrollableContainer = document.querySelector('.right-panel-content');
+    const transcriptionContent = document.querySelector('.transcription-content');
+    if (!scrollableContainer || !transcriptionContent || !selectedTranscription) return;
+    
+    const entryIndex = findEntryIndexForTimestamp(currentTimeSeconds);
+    if (entryIndex < 0 || entryIndex === lastScrolledIndex) return;
+    
+    const entries = transcriptionContent.querySelectorAll('.transcription-entry');
+    if (entryIndex >= entries.length) return;
+    
+    const targetEntry = entries[entryIndex];
+    if (!targetEntry) return;
+    
+    // Calculate scroll position with padding offset
+    const containerTop = scrollableContainer.getBoundingClientRect().top;
+    const entryTop = targetEntry.getBoundingClientRect().top;
+    const targetScroll = entryTop - containerTop + scrollableContainer.scrollTop - 24;
+    
+    // Only scroll if there's a meaningful difference
+    if (Math.abs(targetScroll - scrollableContainer.scrollTop) > 50) {
+        // Smooth scroll animation
+        const startScroll = scrollableContainer.scrollTop;
+        const distance = targetScroll - startScroll;
+        const duration = 400;
+        const startTime = performance.now();
+        
+        function animate(currentTime) {
+            const progress = Math.min((currentTime - startTime) / duration, 1);
+            const easeOut = 1 - Math.pow(1 - progress, 3);
+            scrollableContainer.scrollTop = startScroll + distance * easeOut;
+            if (progress < 1) requestAnimationFrame(animate);
+        }
+        
+        requestAnimationFrame(animate);
+    }
+    
+    lastScrolledIndex = entryIndex;
 }
 
 // Initialize the app when PyWebview is ready
@@ -363,4 +636,29 @@ document.addEventListener('DOMContentLoaded', function() {
             loadTranscriptions();
         });
     }
+    
+    // Spacebar to toggle play/pause when in right panel
+    document.addEventListener('keydown', (e) => {
+        // Only handle spacebar
+        if (e.code !== 'Space' && e.key !== ' ') return;
+        
+        // Don't interfere with text input fields
+        const activeElement = document.activeElement;
+        if (activeElement && (activeElement.tagName === 'INPUT' || activeElement.tagName === 'TEXTAREA')) {
+            return;
+        }
+        
+        // Check if right panel is visible and has content
+        const rightPanel = document.querySelector('.right-panel');
+        const transcriptionContent = document.querySelector('.transcription-content');
+        if (!rightPanel || !transcriptionContent) return;
+        
+        // Prevent default scrolling behavior
+        e.preventDefault();
+        
+        // Toggle play/pause
+        if (window.toggleAudioPlayPause) {
+            window.toggleAudioPlayPause();
+        }
+    });
 });

@@ -150,12 +150,15 @@ body {
     overflow: hidden;
     display: flex;
     flex-direction: column;
+    position: relative;
 }
 
 .right-panel-content {
     padding: 24px;
     overflow-y: auto;
     flex: 1;
+    padding-bottom: 60px; /* Space for audio player */
+    scroll-behavior: smooth;
 }
 
 /* Custom scrollbar for right panel content */
@@ -874,4 +877,197 @@ body.dark-mode .robot-icon {
 
 body.dark-mode .activity-content {
     color: #c6c6c6;
+}
+
+/* Audio Player */
+.audio-player-container {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    padding: 8px 12px;
+    pointer-events: none;
+    z-index: 10;
+}
+
+.audio-player-container .audio-player {
+    background-color: white;
+    border-radius: 8px;
+    box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.1);
+    padding: 8px 12px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    pointer-events: auto;
+}
+
+.audio-play-pause-btn {
+    background-color: #4a4a4a;
+    color: white;
+    border: none;
+    border-radius: 50%;
+    width: 24px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: background-color 0.2s;
+    flex-shrink: 0;
+    font-size: 10px;
+    padding: 0;
+}
+
+.audio-play-pause-btn:hover {
+    background-color: #333;
+}
+
+.audio-autoscroll-btn {
+    background-color: #4a4a4a;
+    color: white;
+    border: none;
+    border-radius: 50%;
+    width: 24px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: background-color 0.2s;
+    flex-shrink: 0;
+    font-size: 10px;
+    padding: 0;
+}
+
+.audio-autoscroll-btn:hover {
+    background-color: #333;
+}
+
+.audio-autoscroll-btn.active {
+    background-color: #007bff;
+}
+
+.audio-autoscroll-btn.active:hover {
+    background-color: #0056b3;
+}
+
+.audio-seekbar {
+    flex: 1;
+    height: 4px;
+    background: #e0e0e0;
+    border-radius: 2px;
+    outline: none;
+    -webkit-appearance: none;
+    appearance: none;
+    cursor: pointer;
+}
+
+.audio-seekbar::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 12px;
+    height: 12px;
+    background: #4a4a4a;
+    border-radius: 50%;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.audio-seekbar::-webkit-slider-thumb:hover {
+    background: #333;
+}
+
+.audio-seekbar::-moz-range-thumb {
+    width: 12px;
+    height: 12px;
+    background: #4a4a4a;
+    border-radius: 50%;
+    cursor: pointer;
+    border: none;
+    transition: background-color 0.2s;
+}
+
+.audio-seekbar::-moz-range-thumb:hover {
+    background: #333;
+}
+
+.audio-timestamps {
+    display: flex;
+    align-items: center;
+    font-size: 11px;
+    color: #666;
+    font-family: 'Courier New', monospace;
+    font-weight: 500;
+    flex-shrink: 0;
+    min-width: 50px;
+}
+
+.current-time {
+    color: #333;
+}
+
+.time-separator {
+    margin: 0 4px;
+    color: #999;
+}
+
+.total-time {
+    color: #666;
+}
+
+/* Hide audio element */
+#transcriptionAudio {
+    display: none;
+}
+
+/* Dark mode for audio player */
+body.dark-mode .audio-player-container .audio-player {
+    background-color: #2d2d2d;
+    border-color: #404040;
+    box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.3);
+}
+
+body.dark-mode .audio-seekbar {
+    background: #404040;
+}
+
+body.dark-mode .audio-seekbar::-webkit-slider-thumb {
+    background: #666;
+}
+
+body.dark-mode .audio-seekbar::-webkit-slider-thumb:hover {
+    background: #888;
+}
+
+body.dark-mode .audio-seekbar::-moz-range-thumb {
+    background: #666;
+}
+
+body.dark-mode .audio-seekbar::-moz-range-thumb:hover {
+    background: #888;
+}
+
+body.dark-mode .audio-timestamps {
+    color: #b0b0b0;
+}
+
+body.dark-mode .current-time {
+    color: #e0e0e0;
+}
+
+body.dark-mode .time-separator {
+    color: #666;
+}
+
+body.dark-mode .total-time {
+    color: #b0b0b0;
+}
+
+body.dark-mode .audio-autoscroll-btn.active {
+    background-color: #007bff;
+}
+
+body.dark-mode .audio-autoscroll-btn.active:hover {
+    background-color: #0056b3;
 }
