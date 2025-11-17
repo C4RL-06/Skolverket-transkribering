@@ -104,12 +104,12 @@ function renderTranscriptionContent() {
         .join('');
     
     const transcriptionEntriesHtml = selectedTranscription.transcribedText
-        .map(entry => `
+        .map((entry, index) => `
             <div class="transcription-entry">
                 <div class="entry-timestamp">${formatTimestamp(entry.timestamp)}</div>
                 <div class="entry-content">
                     <div class="entry-speaker">${selectedTranscription.speakers[entry.speakerIndex]}</div>
-                    <div class="entry-text">${entry.text}</div>
+                    <div class="entry-text editable-text" onclick="editText(this, ${index})">${entry.text}</div>
                 </div>
             </div>
         `).join('');
@@ -183,6 +183,56 @@ function editTitle(titleElement) {
     });
     
     input.addEventListener('blur', saveTitle);
+}
+
+// Edit text functionality
+function editText(textElement, entryIndex) {
+    const currentText = textElement.textContent;
+    const textarea = document.createElement('textarea');
+    textarea.value = currentText;
+    textarea.className = 'text-editor';
+    textarea.style.cssText = 'width: 100%; min-height: 60px; font-size: 15px; line-height: 1.5; border: 2px solid #007bff; padding: 8px; border-radius: 4px; background: white; resize: vertical; font-family: inherit;';
+    
+    textElement.replaceWith(textarea);
+    textarea.focus();
+    textarea.select();
+    
+    function saveText() {
+        const newText = textarea.value.trim();
+        if (newText !== currentText) {
+            // Update the text in the selected transcription (allow empty text)
+            selectedTranscription.transcribedText[entryIndex].text = newText;
+            
+            // Save to JSON file
+            saveTranscriptionToFile();
+        }
+        
+        // Replace textarea with updated text element
+        const newTextElement = document.createElement('div');
+        newTextElement.className = 'entry-text editable-text';
+        newTextElement.onclick = () => editText(newTextElement, entryIndex);
+        newTextElement.textContent = selectedTranscription.transcribedText[entryIndex].text;
+        textarea.replaceWith(newTextElement);
+    }
+    
+    textarea.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' && !e.shiftKey) {
+            // Enter (without Shift) saves the text
+            e.preventDefault();
+            saveText();
+        } else if (e.key === 'Escape') {
+            // Cancel editing
+            e.preventDefault();
+            const textElement = document.createElement('div');
+            textElement.className = 'entry-text editable-text';
+            textElement.onclick = () => editText(textElement, entryIndex);
+            textElement.textContent = currentText;
+            textarea.replaceWith(textElement);
+        }
+        // Shift+Enter allows creating new lines in the textarea
+    });
+    
+    textarea.addEventListener('blur', saveText);
 }
 
 // Edit speaker functionality
