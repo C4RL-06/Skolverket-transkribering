@@ -9,6 +9,8 @@ from pathlib import Path
 from transcriber import TranscriptionEngine, TranscriptionJob, Language, ModelSize
 import configparser
 import warnings
+import subprocess
+import tempfile
 warnings.filterwarnings("ignore", message=".*set_audio_backend.*")
 
 # Store engines outside the Api class to avoid serialization issues
@@ -314,6 +316,78 @@ class Api:
                 config.write(f)
             
             return {"success": True, "message": "Settings saved successfully"}
+        except Exception as e:
+            return {"success": False, "message": str(e)}
+    
+    def openTranscriptionInNotepad(self, transcriptionData):
+        """
+        Open transcription data in Windows Notepad.
+        
+        Args:
+            transcriptionData: The transcription data dictionary
+        
+        Returns:
+            Dict with success status and message
+        """
+        try:
+            # Format the transcription data for Notepad
+            lines = []
+            
+            # Title
+            lines.append(f"{transcriptionData.get('title', 'Untitled Transcription')}")
+            lines.append("=" * 60)
+            lines.append("")
+            
+            # Date and time
+            date = transcriptionData.get('date', '')
+            time = transcriptionData.get('time', '')
+            if date or time:
+                date_time_str = f"{date} {time}".strip()
+                lines.append(f"Date: {date_time_str}")
+                lines.append("")
+            
+            # Speakers
+            speakers = transcriptionData.get('speakers', [])
+            if speakers:
+                lines.append(f"Speakers: {', '.join(speakers)}")
+                lines.append("")
+            
+            lines.append("-" * 60)
+            lines.append("")
+            
+            # Transcription entries
+            transcribed_text = transcriptionData.get('transcribedText', [])
+            for entry in transcribed_text:
+                timestamp = entry.get('timestamp', '')
+                speaker_index = entry.get('speakerIndex', 0)
+                text = entry.get('text', '')
+                
+                # Formated timestamp (removing leading zeros from hours if 00:)
+                timestamp_parts = timestamp.split(':')
+                if len(timestamp_parts) == 3:
+                    hours, minutes, seconds = timestamp_parts
+                    if hours == '00':
+                        formatted_timestamp = f"{minutes}:{seconds}"
+                    else:
+                        formatted_timestamp = f"{int(hours)}:{minutes}:{seconds}"
+                else:
+                    formatted_timestamp = timestamp
+                
+                speaker_name = speakers[speaker_index] if speaker_index < len(speakers) else f"Speaker {speaker_index + 1}"
+                
+                lines.append(f"[{formatted_timestamp}] {speaker_name}:")
+                lines.append(f"{text}")
+                lines.append("")
+            
+            # Temporary file
+            with tempfile.NamedTemporaryFile(mode='w', encoding='utf-8', suffix='.txt', delete=False) as f:
+                f.write('\n'.join(lines))
+                temp_file_path = f.name
+            
+            # Open in Notepad
+            subprocess.Popen(['notepad.exe', temp_file_path])
+            
+            return {"success": True, "message": "Opened transcription in Notepad"}
         except Exception as e:
             return {"success": False, "message": str(e)}
 

@@ -109,10 +109,15 @@ function renderTranscriptionContent() {
     if (!selectedTranscription) {
         contentContainer.innerHTML = `
             <div class="empty-state">
-                <h2>Välj en transkribering</h2>
-                <p>Välj en transkribering från vänster panel för att visa innehållet</p>
+                <h2 data-i18n="selectOrCreate">Välj eller skapa en transkribering</h2>
+                <p data-i18n="selectOrCreateDesc">Välj eller skapa en transkribering i den vänstra panelen</p>
             </div>
         `;
+        // Apply translations to the empty state
+        if (typeof applyLanguage === 'function') {
+            const settings = typeof Settings !== 'undefined' ? Settings.get() : { language: 'sv' };
+            applyLanguage(settings.language);
+        }
         // Remove audio player if it exists
         const existingPlayer = document.querySelector('.audio-player-container');
         if (existingPlayer) {
@@ -139,7 +144,12 @@ function renderTranscriptionContent() {
     const dateTime = selectedTranscription.time ? `${selectedTranscription.date} ${selectedTranscription.time}` : selectedTranscription.date;
     contentContainer.innerHTML = `
         <div class="content-header">
-            <h1 class="content-title editable-title" onclick="editTitle(this)">${selectedTranscription.title}</h1>
+            <div class="title-with-button">
+                <h1 class="content-title editable-title" onclick="editTitle(this)">${selectedTranscription.title}</h1>
+                <button class="open-notepad-btn" onclick="openInNotepad()" title="${getTranslation('openInNotepad')}">
+                    <i class="fa-solid fa-file-lines"></i>
+                </button>
+            </div>
             <span class="content-date">${dateTime}</span>
         </div>
         
@@ -156,16 +166,16 @@ function renderTranscriptionContent() {
         <div class="audio-player-container">
             <audio id="transcriptionAudio" preload="metadata"></audio>
             <div class="audio-player">
-                <button class="audio-skip-btn" id="audioSkipBackBtn" title="Skip back 10 seconds">
+                <button class="audio-skip-btn" id="audioSkipBackBtn" title="${getTranslation('skipBack')}">
                     <i class="fa-solid fa-backward"></i>
                 </button>
                 <button class="audio-play-pause-btn" id="audioPlayPauseBtn">
                     <i class="fa-solid fa-play"></i>
                 </button>
-                <button class="audio-skip-btn" id="audioSkipForwardBtn" title="Skip forward 10 seconds">
+                <button class="audio-skip-btn" id="audioSkipForwardBtn" title="${getTranslation('skipForward')}">
                     <i class="fa-solid fa-forward"></i>
                 </button>
-                <button class="audio-autoscroll-btn" id="audioAutoscrollBtn" title="Toggle auto-scroll">
+                <button class="audio-autoscroll-btn" id="audioAutoscrollBtn" title="${getTranslation('toggleAutoscroll')}">
                     <i class="fa-solid fa-arrows-up-down"></i>
                 </button>
                 <input type="range" class="audio-seekbar" id="audioSeekbar" min="0" max="0" value="0" step="0.1">
@@ -180,6 +190,31 @@ function renderTranscriptionContent() {
     
     // Initialize audio player after rendering (always, even without audio file for testing)
     initializeAudioPlayer(selectedTranscription);
+    
+    // Update dynamic translations (tooltips)
+    if (typeof updateDynamicTranslations === 'function') {
+        updateDynamicTranslations();
+    }
+}
+
+// Open transcription in Notepad
+async function openInNotepad() {
+    if (!selectedTranscription) return;
+    
+    try {
+        // Create a copy without the _relativePath property
+        const transcriptionToOpen = { ...selectedTranscription };
+        delete transcriptionToOpen._relativePath;
+        
+        const result = await pywebview.api.openTranscriptionInNotepad(transcriptionToOpen);
+        if (!result.success) {
+            console.error('Failed to open in Notepad:', result.message);
+            alert(getTranslation('failedToOpenNotepad') + ': ' + result.message);
+        }
+    } catch (error) {
+        console.error('Error opening in Notepad:', error);
+        alert(getTranslation('errorOpeningNotepad') + ': ' + error);
+    }
 }
 
 // Edit title functionality
@@ -664,6 +699,20 @@ function scrollToCurrentTimestamp(currentTimeSeconds) {
     }
     
     lastScrolledIndex = entryIndex;
+}
+
+// Update dynamic translations (tooltips, etc.)
+function updateDynamicTranslations() {
+    // Update audio player tooltips
+    const skipBackBtn = document.getElementById('audioSkipBackBtn');
+    const skipForwardBtn = document.getElementById('audioSkipForwardBtn');
+    const autoscrollBtn = document.getElementById('audioAutoscrollBtn');
+    const openNotepadBtn = document.querySelector('.open-notepad-btn');
+    
+    if (skipBackBtn) skipBackBtn.title = getTranslation('skipBack');
+    if (skipForwardBtn) skipForwardBtn.title = getTranslation('skipForward');
+    if (autoscrollBtn) autoscrollBtn.title = getTranslation('toggleAutoscroll');
+    if (openNotepadBtn) openNotepadBtn.title = getTranslation('openInNotepad');
 }
 
 // Initialize the app when PyWebview is ready

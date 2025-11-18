@@ -59,7 +59,7 @@ document.addEventListener('DOMContentLoaded', function() {
             <div class="file-status">
                 <span class="progress-percentage">0%</span>
                 <i class="fa-solid fa-check completion-checkmark"></i>
-                <button class="remove-file-btn" title="Remove file">
+                <button class="remove-file-btn" title="${getTranslation('removeFile')}">
                     <i class="fa-solid fa-trash-can"></i>
                 </button>
             </div>
@@ -191,9 +191,12 @@ document.addEventListener('DOMContentLoaded', function() {
     function addActivityLog(message, type = 'info') {
         if (!activityContent) return;
         
+        const now = new Date();
+        const timeString = now.toLocaleTimeString('sv-SE', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false });
+        
         const logEntry = document.createElement('div');
         logEntry.className = `activity-log-entry activity-log-${type}`;
-        logEntry.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+        logEntry.textContent = `[${timeString}] ${message}`;
         activityContent.appendChild(logEntry);
         activityContent.scrollTop = activityContent.scrollHeight;
     }
@@ -204,7 +207,7 @@ document.addEventListener('DOMContentLoaded', function() {
         loggedErrors.clear();
         
         if (fileData.size === 0) {
-            addActivityLog('No files selected. Please add files first.', 'error');
+            addActivityLog(getTranslation('noFilesSelected'), 'error');
             return;
         }
         
@@ -213,7 +216,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const modelSelect = document.getElementById('model-select');
         
         if (!languageSelect || !modelSelect) {
-            addActivityLog('Settings not found', 'error');
+            addActivityLog(getTranslation('settingsNotFound'), 'error');
             return;
         }
         
@@ -249,31 +252,31 @@ document.addEventListener('DOMContentLoaded', function() {
         // Get all file paths
         const filePaths = Array.from(fileData.values()).map(f => f.path);
         
-        addActivityLog(`Starting transcription for ${filePaths.length} file(s)...`);
-        addActivityLog(`Language: ${languageSelect.value}, Model: ${modelSelect.value}`);
+        const fileCount = filePaths.length;
+        const fileWord = fileCount === 1 ? getTranslation('file') : getTranslation('files');
+        addActivityLog(`${getTranslation('startingTranscription')} ${fileCount} ${fileWord}...`);
+        addActivityLog(`${getTranslation('language')}: ${languageSelect.value}, ${getTranslation('model')}: ${modelSelect.value}`);
         
         // Disable button
         startTranscribingBtn.disabled = true;
-        startTranscribingBtn.textContent = 'Transcribing...';
+        startTranscribingBtn.textContent = getTranslation('transcribing');
         
         try {
             // Start transcription
             const result = await pywebview.api.startTranscription(filePaths, language, modelSize);
             
             if (result.success) {
-                addActivityLog(result.message, 'success');
-                
                 // Start polling for progress
                 startProgressPolling();
             } else {
-                addActivityLog(`Error: ${result.message}`, 'error');
+                addActivityLog(`${getTranslation('error')}: ${result.message}`, 'error');
                 startTranscribingBtn.disabled = false;
-                startTranscribingBtn.textContent = 'Starta transkribering';
+                startTranscribingBtn.textContent = getTranslation('startTranscription');
             }
         } catch (error) {
-            addActivityLog(`Error starting transcription: ${error}`, 'error');
+            addActivityLog(`${getTranslation('errorStartingTranscription')}: ${error}`, 'error');
             startTranscribingBtn.disabled = false;
-            startTranscribingBtn.textContent = 'Starta transkribering';
+            startTranscribingBtn.textContent = getTranslation('startTranscription');
         }
     }
     
@@ -304,7 +307,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         // Only log error once per file
                         const errorKey = `${filePath}:${progress.message}`;
                         if (!loggedErrors.has(errorKey)) {
-                            addActivityLog(`Error transcribing ${fileName}: ${progress.message}`, 'error');
+                            addActivityLog(`${getTranslation('errorTranscribing')} ${fileName}: ${progress.message}`, 'error');
                             loggedErrors.add(errorKey);
                         }
                         allComplete = false;
@@ -316,8 +319,8 @@ document.addEventListener('DOMContentLoaded', function() {
                     clearInterval(progressInterval);
                     progressInterval = null;
                     startTranscribingBtn.disabled = false;
-                    startTranscribingBtn.textContent = 'Starta transkribering';
-                    addActivityLog('All transcriptions completed!', 'success');
+                    startTranscribingBtn.textContent = getTranslation('startTranscription');
+                    addActivityLog(getTranslation('allTranscriptionsCompleted'), 'success');
                 }
             } catch (error) {
                 console.error('Error polling progress:', error);
@@ -327,7 +330,7 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Handle transcription completion callback
     window.onTranscriptionComplete = function(fileName) {
-        addActivityLog(`Transcription complete: ${fileName}`, 'success');
+        addActivityLog(`${getTranslation('transcriptionComplete')}: ${fileName}`, 'success');
         updateFileProgress(fileName, 100);
     };
     

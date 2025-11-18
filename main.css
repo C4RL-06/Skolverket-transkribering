@@ -188,10 +188,41 @@ body {
     border-bottom: 1px solid #e0e0e0;
 }
 
+.title-with-button {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
 .content-title {
     font-size: 24px;
     font-weight: 600;
     color: #333;
+    margin: 0;
+}
+
+.open-notepad-btn {
+    background-color: #4a4a4a;
+    color: white;
+    border: none;
+    border-radius: 50%;
+    width: 36px;
+    height: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: background-color 0.2s;
+    flex-shrink: 0;
+    padding: 0;
+}
+
+.open-notepad-btn:hover {
+    background-color: #333;
+}
+
+.open-notepad-btn i {
+    font-size: 16px;
 }
 
 .editable-title {
@@ -1043,6 +1074,14 @@ body.dark-mode .settings-icon-btn:hover,
 body.dark-mode .close-modal-btn:hover,
 body.dark-mode .back-button:hover {
     background-color: #404040;
+}
+
+body.dark-mode .open-notepad-btn {
+    background-color: #4a4a4a;
+}
+
+body.dark-mode .open-notepad-btn:hover {
+    background-color: #333;
 }
 
 body.dark-mode .speaker-tag {

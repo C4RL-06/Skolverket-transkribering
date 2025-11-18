@@ -104,7 +104,27 @@ const translations = {
         languageOption2: 'Engelska',
         modelOption1: 'Liten Modell (Snabb, mindre exakt)',
         modelOption2: 'Medium Modell (Bra resultat, långsam)',
-        modelOption3: 'Stor Modell (Bäst resultat, väldigt långsam)'
+        modelOption3: 'Stor Modell (Bäst resultat, väldigt långsam)',
+        openInNotepad: 'Öppna i Anteckningar',
+        skipBack: 'Spola tillbaka 10 sekunder',
+        skipForward: 'Spola fram 10 sekunder',
+        toggleAutoscroll: 'Auto-skroll',
+        transcribing: 'Transkriberar...',
+        noFilesSelected: 'Inga filer valda. Vänligen lägg till filer först.',
+        settingsNotFound: 'Inställningar hittades inte',
+        startingTranscription: 'Startar transkribering för',
+        file: 'fil',
+        files: 'filer',
+        language: 'Språk',
+        model: 'Modell',
+        error: 'Fel',
+        errorTranscribing: 'Fel vid transkribering',
+        transcriptionComplete: 'Transkribering klar',
+        allTranscriptionsCompleted: 'Alla transkriberingar är klara!',
+        errorStartingTranscription: 'Fel vid start av transkribering',
+        removeFile: 'Ta bort fil',
+        failedToOpenNotepad: 'Misslyckades med att öppna transkribering i Notepad',
+        errorOpeningNotepad: 'Fel vid öppning av transkribering i Notepad'
     },
     en: {
         yourTranscriptions: 'Your Transcriptions',
@@ -145,7 +165,27 @@ const translations = {
         languageOption2: 'Engelska',
         modelOption1: 'Small Model (Fast, less accurate)',
         modelOption2: 'Medium Model (Good results, slow)',
-        modelOption3: 'Big Model (Best results, very slow)'
+        modelOption3: 'Big Model (Best results, very slow)',
+        openInNotepad: 'Open in Notepad',
+        skipBack: 'Skip back 10 seconds',
+        skipForward: 'Skip forward 10 seconds',
+        toggleAutoscroll: 'Toggle auto-scroll',
+        transcribing: 'Transcribing...',
+        noFilesSelected: 'No files selected. Please add files first.',
+        settingsNotFound: 'Settings not found',
+        startingTranscription: 'Starting transcription for',
+        file: 'file',
+        files: 'files',
+        language: 'Language',
+        model: 'Model',
+        error: 'Error',
+        errorTranscribing: 'Error transcribing',
+        transcriptionComplete: 'Transcription complete',
+        allTranscriptionsCompleted: 'All transcriptions completed!',
+        errorStartingTranscription: 'Error starting transcription',
+        removeFile: 'Remove file',
+        failedToOpenNotepad: 'Failed to open transcription in Notepad',
+        errorOpeningNotepad: 'Error opening transcription in Notepad'
     }
 };
 
@@ -156,6 +196,14 @@ function applyTheme(theme) {
     } else {
         document.body.classList.remove('dark-mode');
     }
+}
+
+// Helper function to get translation for a key
+function getTranslation(key) {
+    const settings = Settings.get();
+    const langKey = settings.language || 'sv';
+    const t = translations[langKey] || translations['sv'];
+    return t[key] || key;
 }
 
 // Apply language
@@ -173,6 +221,11 @@ function applyLanguage(lang) {
     // Re-render models list (if present) so labels/buttons use the current language
     if (typeof renderModelsList === 'function') {
         renderModelsList();
+    }
+    
+    // Update dynamically generated content that uses translations
+    if (typeof updateDynamicTranslations === 'function') {
+        updateDynamicTranslations();
     }
 }
 
