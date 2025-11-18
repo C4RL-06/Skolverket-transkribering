@@ -78,6 +78,23 @@ const translations = {
         english: 'English',
         lightMode: 'Ljust läge',
         darkMode: 'Mörkt läge',
+        models: 'Modeller',
+        modelsDesc: 'Se nedladdade AI-modeller och ta bort dem för att frigöra diskutrymme.',
+        modelsNone: 'Inga modeller är nedladdade ännu.',
+        modelsHeaderName: 'Modell',
+        modelsHeaderLanguage: 'Språk',
+        modelsHeaderSize: 'Storlek',
+        deleteModel: 'Ta bort',
+        modelsModelId: 'Modell-ID',
+        modelsStorage: 'Lagring',
+        modelsCachePath: 'Sökväg',
+        confirmDeleteModel: 'Är du säker på att du vill ta bort denna modell? Detta frigör diskutrymme men modellen måste laddas ner igen vid nästa användning.',
+        modelLangSv: 'Svenska',
+        modelLangEn: 'Engelska',
+        modelSizeTiny: 'Liten',
+        modelSizeSmall: 'Small',
+        modelSizeMedium: 'Medium',
+        modelSizeLarge: 'Stor',
         backToOverview: 'Tillbaka till översikt',
         selectFile: 'Välj audio- eller videofil',
         languageAndModel: 'Välj Språk & Modell',
@@ -102,6 +119,23 @@ const translations = {
         english: 'English',
         lightMode: 'Light Mode',
         darkMode: 'Dark Mode',
+        models: 'Models',
+        modelsDesc: 'View downloaded AI models and remove them to free up disk space.',
+        modelsNone: 'No models have been downloaded yet.',
+        modelsHeaderName: 'Model',
+        modelsHeaderLanguage: 'Language',
+        modelsHeaderSize: 'Size',
+        deleteModel: 'Delete',
+        modelsModelId: 'Model ID',
+        modelsStorage: 'Storage',
+        modelsCachePath: 'Path',
+        confirmDeleteModel: 'Are you sure you want to delete this model? This will free disk space but the model must be downloaded again next time you use it.',
+        modelLangSv: 'Swedish',
+        modelLangEn: 'English',
+        modelSizeTiny: 'Tiny',
+        modelSizeSmall: 'Small',
+        modelSizeMedium: 'Medium',
+        modelSizeLarge: 'Large',
         backToOverview: 'Back to overview',
         selectFile: 'Choose audio or video file',
         languageAndModel: 'Select Language & Model',
@@ -135,6 +169,183 @@ function applyLanguage(lang) {
             element.textContent = t[key];
         }
     });
+
+    // Re-render models list (if present) so labels/buttons use the current language
+    if (typeof renderModelsList === 'function') {
+        renderModelsList();
+    }
+}
+
+// Cache for downloaded models shown in the settings modal
+let _downloadedModels = [];
+
+// Format number of bytes as a human readable string
+function formatBytes(bytes) {
+    if (!bytes || bytes <= 0) return '0 B';
+    const units = ['B', 'KB', 'MB', 'GB', 'TB'];
+    let i = 0;
+    let value = bytes;
+    while (value >= 1024 && i < units.length - 1) {
+        value /= 1024;
+        i++;
+    }
+    return `${value.toFixed(1)} ${units[i]}`;
+}
+
+// Map model info to localized display strings
+function getModelDisplayStrings(model) {
+    const settings = Settings.get();
+    const langKey = settings.language || 'sv';
+    const t = translations[langKey] || translations['sv'];
+
+    const languageLabel =
+        model.language === 'sv' ? t.modelLangSv :
+        model.language === 'en' ? t.modelLangEn :
+        model.language;
+
+    let sizeKey = 'modelSizeMedium';
+    switch (model.modelSize) {
+        case 'tiny':
+            sizeKey = 'modelSizeTiny';
+            break;
+        case 'small':
+            sizeKey = 'modelSizeSmall';
+            break;
+        case 'medium':
+            sizeKey = 'modelSizeMedium';
+            break;
+        case 'large':
+            sizeKey = 'modelSizeLarge';
+            break;
+        default:
+            sizeKey = 'modelSizeMedium';
+    }
+
+    const sizeLabel = t[sizeKey] || model.modelSize;
+
+    return {
+        languageLabel,
+        sizeLabel,
+        deleteLabel: t.deleteModel || 'Delete',
+        noneLabel: t.modelsNone || 'No models downloaded.',
+        modelIdLabel: t.modelsModelId || 'Model ID',
+        storageLabel: t.modelsStorage || 'Storage',
+        pathLabel: t.modelsCachePath || 'Path'
+    };
+}
+
+// Render the list of downloaded models inside the settings modal
+function renderModelsList() {
+    const container = document.getElementById('modelsList');
+    if (!container) return;
+
+    container.innerHTML = '';
+    const placeholderStrings = getModelDisplayStrings({ language: 'sv', modelSize: 'medium' });
+    const noneLabel = placeholderStrings.noneLabel;
+
+    if (!_downloadedModels || _downloadedModels.length === 0) {
+        const emptyEl = document.createElement('div');
+        emptyEl.className = 'models-empty';
+        emptyEl.textContent = noneLabel;
+        container.appendChild(emptyEl);
+        return;
+    }
+
+    _downloadedModels.forEach(model => {
+        const {
+            languageLabel,
+            sizeLabel,
+            deleteLabel,
+            modelIdLabel,
+            storageLabel,
+            pathLabel
+        } = getModelDisplayStrings(model);
+
+        const modelName = model.modelId.split('/').pop() || model.modelId;
+        const card = document.createElement('div');
+        card.className = 'model-card';
+        card.innerHTML = `
+            <div class="model-card-header">
+                <div>
+                    <div class="model-card-title">${modelName}</div>
+                    <div class="model-card-id">
+                        <span class="model-card-label">${modelIdLabel}:</span>
+                        <span class="model-card-value">${model.modelId}</span>
+                    </div>
+                </div>
+                <button class="models-delete-btn" data-model-id="${model.modelId}">
+                    ${deleteLabel}
+                </button>
+            </div>
+            <div class="model-card-chips">
+                <span class="model-chip">${sizeLabel}</span>
+                <span class="model-chip model-chip-secondary">${languageLabel}</span>
+            </div>
+            <div class="model-meta-grid">
+                <div class="model-meta-item">
+                    <div class="model-meta-label">${storageLabel}</div>
+                    <div class="model-meta-value">${formatBytes(model.sizeBytes)}</div>
+                </div>
+                <div class="model-meta-item model-meta-path">
+                    <div class="model-meta-label">${pathLabel}</div>
+                    <div class="model-meta-value" title="${model.cachePath}">${model.cachePath}</div>
+                </div>
+            </div>
+        `;
+
+        const deleteBtn = card.querySelector('.models-delete-btn');
+        if (deleteBtn) {
+            deleteBtn.addEventListener('click', () => handleDeleteModel(model.modelId));
+        }
+
+        container.appendChild(card);
+    });
+}
+
+// Load downloaded models from backend
+async function loadDownloadedModels() {
+    try {
+        if (typeof pywebview === 'undefined' || !pywebview.api || !pywebview.api.getDownloadedModels) {
+            return [];
+        }
+        const result = await pywebview.api.getDownloadedModels();
+        if (result && result.success && Array.isArray(result.models)) {
+            return result.models;
+        }
+        return [];
+    } catch (error) {
+        console.error('Error loading downloaded models:', error);
+        return [];
+    }
+}
+
+// Handle delete model action
+async function handleDeleteModel(modelId) {
+    const settings = Settings.get();
+    const langKey = settings.language || 'sv';
+    const t = translations[langKey] || translations['sv'];
+    const confirmText =
+        t.confirmDeleteModel ||
+        'Are you sure you want to delete this model? This will free disk space but the model must be downloaded again next time you use it.';
+
+    const ok = window.confirm(confirmText);
+    if (!ok) return;
+
+    try {
+        if (typeof pywebview === 'undefined' || !pywebview.api || !pywebview.api.deleteModel) {
+            console.warn('deleteModel API not available');
+            return;
+        }
+        const result = await pywebview.api.deleteModel(modelId);
+        if (result && result.success) {
+            _downloadedModels = _downloadedModels.filter(m => m.modelId !== modelId);
+            renderModelsList();
+        } else if (result) {
+            console.error('Failed to delete model:', result.message);
+        }
+    } catch (error) {
+        console.error('Error deleting model:', error);
+    }
 }
 
 // Initialize settings on page load
@@ -147,6 +358,13 @@ async function initializeSettings() {
     
     // Apply language
     applyLanguage(settings.language);
+
+    // Initialize models section if present
+    const modelsContainer = document.getElementById('modelsList');
+    if (modelsContainer) {
+        _downloadedModels = await loadDownloadedModels();
+        renderModelsList();
+    }
     
     // Update settings form if it exists
     const languageSelect = document.getElementById('languageSelect');

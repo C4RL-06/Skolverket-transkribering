@@ -115,6 +115,36 @@ class Api:
         audio_path = transcription_folder / audio_relative_path
         return str(audio_path)
 
+    def getDownloadedModels(self):
+        """
+        Return information about downloaded (cached) AI models.
+
+        This is used by the settings UI to show which models are occupying disk space.
+        """
+        try:
+            engine = self._get_engine()
+            models = engine.model_manager.list_cached_models()
+            return {"success": True, "models": models}
+        except Exception as e:
+            return {"success": False, "message": str(e)}
+
+    def deleteModel(self, model_id):
+        """
+        Delete a downloaded model from the local cache.
+
+        Args:
+            model_id: HuggingFace model identifier (e.g. 'KBLab/kb-whisper-small')
+        """
+        try:
+            engine = self._get_engine()
+            deleted = engine.model_manager.delete_model_cache(model_id)
+            if deleted:
+                return {"success": True, "message": f"Deleted model cache for {model_id}"}
+            else:
+                return {"success": False, "message": f"No cached model found for {model_id}"}
+        except Exception as e:
+            return {"success": False, "message": str(e)}
+
     def openFileDialog(self):
         """Open a file dialog and return the selected file path"""
         file_types = ('Video and Audio Files (*.mp4;*.avi;*.mkv;*.mov;*.wmv;*.flv;*.webm;*.m4v;*.mp3;*.wav;*.m4a;*.flac;*.aac;*.ogg;*.wma;*.aiff)', 'All files (*.*)')

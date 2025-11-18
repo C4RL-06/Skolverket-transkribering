@@ -741,6 +741,133 @@ select {
     margin-bottom: 16px;
 }
 
+.settings-description {
+    font-size: 14px;
+    color: #5f6368;
+    line-height: 1.5;
+    margin-bottom: 16px;
+}
+
+.models-list {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.models-empty {
+    padding: 16px;
+    border: 1px dashed #d0d7e2;
+    border-radius: 10px;
+    background: #f6f8fc;
+    font-size: 14px;
+    color: #5f6368;
+    text-align: center;
+}
+
+.model-card {
+    border: 1px solid #e3e8f1;
+    border-radius: 14px;
+    padding: 18px;
+    background: linear-gradient(135deg, rgba(255,255,255,0.95), rgba(248,250,255,0.95));
+    box-shadow: 0 6px 20px rgba(15, 23, 42, 0.08);
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+}
+
+.model-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 12px;
+}
+
+.model-card-title {
+    font-size: 16px;
+    font-weight: 600;
+    color: #1f2a37;
+    margin-bottom: 4px;
+}
+
+.model-card-id {
+    font-size: 13px;
+    color: #5f6368;
+    word-break: break-word;
+}
+
+.model-card-label {
+    font-weight: 600;
+    margin-right: 4px;
+}
+
+.model-card-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.model-chip {
+    font-size: 12px;
+    font-weight: 600;
+    padding: 4px 12px;
+    border-radius: 999px;
+    background-color: #e3f2fd;
+    color: #0d47a1;
+}
+
+.model-chip-secondary {
+    background-color: #f3e8ff;
+    color: #5b21b6;
+}
+
+.model-meta-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 16px;
+}
+
+.model-meta-item {
+    flex: 1 1 160px;
+    min-width: 140px;
+}
+
+.model-meta-label {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: #94a3b8;
+    margin-bottom: 4px;
+}
+
+.model-meta-value {
+    font-size: 14px;
+    font-weight: 600;
+    color: #1f2a37;
+    word-break: break-word;
+}
+
+.model-meta-path .model-meta-value {
+    font-weight: 500;
+    font-size: 13px;
+    color: #475569;
+}
+
+.models-delete-btn {
+    border: none;
+    background: rgba(239, 68, 68, 0.12);
+    color: #b91c1c;
+    font-weight: 600;
+    border-radius: 999px;
+    padding: 6px 14px;
+    cursor: pointer;
+    transition: background-color 0.2s, transform 0.2s;
+}
+
+.models-delete-btn:hover {
+    background: rgba(239, 68, 68, 0.2);
+    transform: translateY(-1px);
+}
+
 .settings-item {
     margin-bottom: 16px;
 }
@@ -774,6 +901,59 @@ body.dark-mode .activity-card,
 body.dark-mode .file-card {
     background-color: #2d2d2d;
     border-color: #404040;
+}
+
+body.dark-mode .settings-description {
+    color: #c9d1d9;
+}
+
+body.dark-mode .models-empty {
+    background-color: rgba(255, 255, 255, 0.05);
+    border-color: #3a3a3a;
+    color: #d1d5db;
+}
+
+body.dark-mode .model-card {
+    background: linear-gradient(135deg, rgba(32,32,32,0.95), rgba(21,21,21,0.95));
+    border-color: #3a3a3a;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6);
+}
+
+body.dark-mode .model-card-title,
+body.dark-mode .model-meta-value {
+    color: #f3f4f6;
+}
+
+body.dark-mode .model-card-id,
+body.dark-mode .model-meta-path .model-meta-value {
+    color: #cbd5f5;
+}
+
+body.dark-mode .model-card-label {
+    color: #9ca3af;
+}
+
+body.dark-mode .model-chip {
+    background-color: rgba(59, 130, 246, 0.2);
+    color: #bfdbfe;
+}
+
+body.dark-mode .model-chip-secondary {
+    background-color: rgba(147, 51, 234, 0.2);
+    color: #d8b4fe;
+}
+
+body.dark-mode .model-meta-label {
+    color: #9ca3af;
+}
+
+body.dark-mode .models-delete-btn {
+    background: rgba(239, 68, 68, 0.2);
+    color: #fecaca;
+}
+
+body.dark-mode .models-delete-btn:hover {
+    background: rgba(239, 68, 68, 0.3);
 }
 
 body.dark-mode .file-drop-zone :hover,

@@ -131,7 +131,11 @@ class ModelManager:
         self._lock = threading.Lock()  # Thread safety for model loading
     
     def is_model_cached(self, model_id: str) -> bool:
-        return Path(self.cache_dir) / f"models--{model_id.replace('/', '--')}".exists()
+        """
+        Check if a given HuggingFace model id has been downloaded to the local cache.
+        """
+        cache_path = Path(self.cache_dir) / f"models--{model_id.replace('/', '--')}"
+        return cache_path.exists()
     
     def load_model(self, model_id: str) -> Any:
         # Thread-safe model loading
@@ -162,6 +166,81 @@ class ModelManager:
             device=self.device,
             return_timestamps=True
         )
+
+    def list_cached_models(self) -> List[Dict[str, Any]]:
+        """
+        List all downloaded models that correspond to the known ModelSize/Language
+        combinations used by the application.
+
+        Returns:
+            List of dicts with keys:
+              - modelId: HuggingFace model id (str)
+              - language: 'sv' or 'en'
+              - modelSize: one of 'tiny', 'small', 'medium', 'large'
+              - cachePath: absolute path to the cache directory for the model
+              - sizeBytes: total size on disk for the cached model (int)
+        """
+        results: List[Dict[str, Any]] = []
+        cache_root = Path(self.cache_dir)
+
+        if not cache_root.exists():
+            return results
+
+        for size in ModelSize:
+            for language in (Language.SWEDISH, Language.ENGLISH):
+                model_id = size.get_model_id(language)
+                folder_name = f"models--{model_id.replace('/', '--')}"
+                folder_path = cache_root / folder_name
+                if not folder_path.exists():
+                    continue
+
+                # Calculate total size of the cached model
+                total_size = 0
+                for path in folder_path.rglob("*"):
+                    if path.is_file():
+                        try:
+                            total_size += path.stat().st_size
+                        except OSError:
+                            # Ignore files we cannot stat for any reason
+                            continue
+
+                results.append(
+                    {
+                        "modelId": model_id,
+                        "language": language.value or "auto",
+                        "modelSize": size.name.lower(),
+                        "cachePath": str(folder_path.resolve()),
+                        "sizeBytes": total_size,
+                    }
+                )
+
+        return results
+
+    def delete_model_cache(self, model_id: str) -> bool:
+        """
+        Delete the cached files for a given HuggingFace model id.
+
+        Args:
+            model_id: HuggingFace model identifier (e.g. 'KBLab/kb-whisper-small')
+
+        Returns:
+            True if a cache directory was found and removed, False otherwise.
+        """
+        cache_root = Path(self.cache_dir)
+        folder_name = f"models--{model_id.replace('/', '--')}"
+        folder_path = cache_root / folder_name
+
+        if not folder_path.exists():
+            return False
+
+        # Remove from in-memory cache if loaded
+        with self._lock:
+            if model_id in self.loaded_models:
+                # Let Python/torch handle actual memory freeing; we just drop the reference.
+                del self.loaded_models[model_id]
+
+        shutil.rmtree(folder_path, ignore_errors=True)
+        return True
 
 
 class SpeakerDiarizer:
