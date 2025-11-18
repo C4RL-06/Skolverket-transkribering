@@ -156,8 +156,14 @@ function renderTranscriptionContent() {
         <div class="audio-player-container">
             <audio id="transcriptionAudio" preload="metadata"></audio>
             <div class="audio-player">
+                <button class="audio-skip-btn" id="audioSkipBackBtn" title="Skip back 10 seconds">
+                    <i class="fa-solid fa-backward"></i>
+                </button>
                 <button class="audio-play-pause-btn" id="audioPlayPauseBtn">
                     <i class="fa-solid fa-play"></i>
+                </button>
+                <button class="audio-skip-btn" id="audioSkipForwardBtn" title="Skip forward 10 seconds">
+                    <i class="fa-solid fa-forward"></i>
                 </button>
                 <button class="audio-autoscroll-btn" id="audioAutoscrollBtn" title="Toggle auto-scroll">
                     <i class="fa-solid fa-arrows-up-down"></i>
@@ -377,11 +383,14 @@ function getCurrentTranscriptionRelativePath() {
 let autoScrollEnabled = false;
 let lastScrolledIndex = -1;
 let scrollThrottle = null;
+let scrollAnimationFrame = null;
 
 // Initialize audio player functionality
 async function initializeAudioPlayer(transcription) {
     const audio = document.getElementById('transcriptionAudio');
     const playPauseBtn = document.getElementById('audioPlayPauseBtn');
+    const skipBackBtn = document.getElementById('audioSkipBackBtn');
+    const skipForwardBtn = document.getElementById('audioSkipForwardBtn');
     const autoscrollBtn = document.getElementById('audioAutoscrollBtn');
     const seekbar = document.getElementById('audioSeekbar');
     const currentTimeSpan = document.querySelector('.current-time');
@@ -395,6 +404,10 @@ async function initializeAudioPlayer(transcription) {
     if (scrollThrottle !== null) {
         clearTimeout(scrollThrottle);
         scrollThrottle = null;
+    }
+    if (scrollAnimationFrame !== null) {
+        cancelAnimationFrame(scrollAnimationFrame);
+        scrollAnimationFrame = null;
     }
     
     // Auto-scroll toggle button
@@ -447,7 +460,8 @@ async function initializeAudioPlayer(transcription) {
             seekbar.value = currentTime;
         }
         // Auto-scroll if enabled and playing (throttled for smooth scrolling)
-        if (autoScrollEnabled && !audio.paused && scrollThrottle === null) {
+        // Don't scroll if an animation is already running (manual scroll in progress)
+        if (autoScrollEnabled && !audio.paused && scrollThrottle === null && scrollAnimationFrame === null) {
             scrollThrottle = setTimeout(() => {
                 scrollToCurrentTimestamp(currentTime);
                 scrollThrottle = null;
@@ -478,6 +492,42 @@ async function initializeAudioPlayer(transcription) {
         toggleAudioPlayPause(audio);
     });
     
+    // Skip backward button (10 seconds)
+    if (skipBackBtn) {
+        skipBackBtn.addEventListener('click', () => {
+            if (audio.src && audio.src !== window.location.href) {
+                // Cancel any pending scroll from timeupdate
+                if (scrollThrottle !== null) {
+                    clearTimeout(scrollThrottle);
+                    scrollThrottle = null;
+                }
+                audio.currentTime = Math.max(0, audio.currentTime - 10);
+                if (autoScrollEnabled) {
+                    lastScrolledIndex = -1;
+                    scrollToCurrentTimestamp(audio.currentTime);
+                }
+            }
+        });
+    }
+    
+    // Skip forward button (10 seconds)
+    if (skipForwardBtn) {
+        skipForwardBtn.addEventListener('click', () => {
+            if (audio.src && audio.src !== window.location.href) {
+                // Cancel any pending scroll from timeupdate
+                if (scrollThrottle !== null) {
+                    clearTimeout(scrollThrottle);
+                    scrollThrottle = null;
+                }
+                audio.currentTime = Math.min(audio.duration || 0, audio.currentTime + 10);
+                if (autoScrollEnabled) {
+                    lastScrolledIndex = -1;
+                    scrollToCurrentTimestamp(audio.currentTime);
+                }
+            }
+        });
+    }
+    
     // Helper function to toggle audio play/pause
     window.toggleAudioPlayPause = function() {
         const audioElement = document.getElementById('transcriptionAudio');
@@ -499,13 +549,18 @@ async function initializeAudioPlayer(transcription) {
     // Seekbar change handler
     seekbar.addEventListener('input', () => {
         const seekTime = parseFloat(seekbar.value);
+        // Cancel any pending scroll from timeupdate
+        if (scrollThrottle !== null) {
+            clearTimeout(scrollThrottle);
+            scrollThrottle = null;
+        }
         if (audio.src && audio.src !== window.location.href && audio.duration) {
             audio.currentTime = seekTime;
         }
         // Update scroll position if auto-scroll is enabled
         if (autoScrollEnabled) {
+            lastScrolledIndex = -1;
             scrollToCurrentTimestamp(seekTime);
-            lastScrolledIndex = -1; // Force re-scroll
         }
     });
 }
@@ -583,6 +638,11 @@ function scrollToCurrentTimestamp(currentTimeSeconds) {
     
     // Only scroll if there's a meaningful difference
     if (Math.abs(targetScroll - scrollableContainer.scrollTop) > 50) {
+        // Cancel any ongoing scroll animation
+        if (scrollAnimationFrame !== null) {
+            cancelAnimationFrame(scrollAnimationFrame);
+        }
+        
         // Smooth scroll animation
         const startScroll = scrollableContainer.scrollTop;
         const distance = targetScroll - startScroll;
@@ -593,10 +653,14 @@ function scrollToCurrentTimestamp(currentTimeSeconds) {
             const progress = Math.min((currentTime - startTime) / duration, 1);
             const easeOut = 1 - Math.pow(1 - progress, 3);
             scrollableContainer.scrollTop = startScroll + distance * easeOut;
-            if (progress < 1) requestAnimationFrame(animate);
+            if (progress < 1) {
+                scrollAnimationFrame = requestAnimationFrame(animate);
+            } else {
+                scrollAnimationFrame = null;
+            }
         }
         
-        requestAnimationFrame(animate);
+        scrollAnimationFrame = requestAnimationFrame(animate);
     }
     
     lastScrolledIndex = entryIndex;
