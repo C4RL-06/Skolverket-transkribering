@@ -1071,3 +1071,7 @@ body.dark-mode .audio-autoscroll-btn.active {
 body.dark-mode .audio-autoscroll-btn.active:hover {
     background-color: #0056b3;
 }
+
+body.dark-mode .text-editor {
+    color: black;
+}
