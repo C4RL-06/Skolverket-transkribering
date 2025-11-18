@@ -53,7 +53,6 @@ const translations = {
         activity: 'Aktivitet',
         languageOption1: 'Svenska',
         languageOption2: 'Engelska',
-        languageOption3: 'Automatisk (Använder mer data)',
         modelOption1: 'Liten Modell (Snabb, mindre exakt)',
         modelOption2: 'Medium Modell (Bra resultat, långsam)',
         modelOption3: 'Stor Modell (Bäst resultat, väldigt långsam)'
@@ -77,8 +76,7 @@ const translations = {
         startTranscription: 'Start Transcription',
         activity: 'Activity',
         languageOption1: 'Swedish',
-        languageOption2: 'Englisk',
-        languageOption3: 'Automatic (Uses more data)',
+        languageOption2: 'Engelska',
         modelOption1: 'Small Model (Fast, less accurate)',
         modelOption2: 'Medium Model (Good results, slow)',
         modelOption3: 'Big Model (Best results, very slow)'

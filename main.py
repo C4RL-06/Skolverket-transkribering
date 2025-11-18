@@ -119,7 +119,7 @@ class Api:
         
         Args:
             file_paths: List of file paths
-            language: "sv", "en", or "auto"
+            language: "sv" or "en"
             model_size: "tiny", "small", "medium", or "large"
         
         Returns:
@@ -129,8 +129,7 @@ class Api:
             # Map language string to enum
             lang_map = {
                 "sv": Language.SWEDISH,
-                "en": Language.ENGLISH,
-                "auto": Language.AUTO
+                "en": Language.ENGLISH
             }
             lang = lang_map.get(language.lower(), Language.SWEDISH)
             
