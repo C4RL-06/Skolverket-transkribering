@@ -235,11 +235,22 @@ function editText(textElement, entryIndex) {
     const textarea = document.createElement('textarea');
     textarea.value = currentText;
     textarea.className = 'text-editor';
-    textarea.style.cssText = 'width: 100%; min-height: 60px; font-size: 15px; line-height: 1.5; border: 2px solid #007bff; padding: 8px; border-radius: 4px; background: white; resize: vertical; font-family: inherit;';
     
     textElement.replaceWith(textarea);
+
+    // Function to auto-resize the textarea
+    function autoResize() {
+        textarea.style.height = 'auto';
+        textarea.style.height = `${textarea.scrollHeight}px`;
+    }
+
+    // Auto-resize on input
+    textarea.addEventListener('input', autoResize);
+    
+    // Set initial size and focus
     textarea.focus();
     textarea.select();
+    autoResize(); // Set initial height correctly
     
     function saveText() {
         const newText = textarea.value.trim();

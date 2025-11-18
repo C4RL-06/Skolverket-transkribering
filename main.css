@@ -1075,3 +1075,47 @@ body.dark-mode .audio-autoscroll-btn.active:hover {
 body.dark-mode .text-editor {
     color: black;
 }
+
+body.dark-mode .editable-text:hover {
+    background-color: #333;
+}
+
+.text-editor {
+    width: 100%;
+    font-size: 15px;
+    line-height: 1.5;
+    border: 2px solid #007bff;
+    padding: 8px;
+    border-radius: 4px;
+    background: white;
+    resize: none;
+    font-family: inherit;
+    overflow-y: hidden; /* Prevents scrollbar from flashing */
+}
+
+body.dark-mode .text-editor {
+    background-color: #2d2d2d;
+    color: #e0e0e0;
+    border-color: #007bff;
+}
+
+body.dark-mode select {
+    background-color: #1a1a1a;
+    border-color: #404040;
+}
+
+.entry-text {
+    color: #333;
+    font-size: 15px;
+    line-height: 1.5;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+    word-break: break-word;
+}
+
+.editable-text {
+    cursor: pointer;
+    transition: background-color 0.2s;
+    padding: 4px 0;
+    border-radius: 4px;
+}
