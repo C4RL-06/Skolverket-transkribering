@@ -7,11 +7,23 @@ import json
 import glob
 from pathlib import Path
 from transcriber import TranscriptionEngine, TranscriptionJob, Language, ModelSize
+import configparser
 import warnings
 warnings.filterwarnings("ignore", message=".*set_audio_backend.*")
 
 # Store engines outside the Api class to avoid serialization issues
 _engine_cache = {}
+
+# Settings file path (in the application directory)
+def get_settings_file_path():
+    """Get the path to the settings .ini file."""
+    if getattr(sys, 'frozen', False):
+        # If running as a compiled executable
+        application_path = os.path.dirname(sys.executable)
+    else:
+        # If running as a script
+        application_path = os.path.dirname(os.path.abspath(__file__))
+    return os.path.join(application_path, 'settings.ini')
 
 class Api:
     def __init__(self):
@@ -208,6 +220,72 @@ class Api:
         except Exception as e:
             self.active_jobs[file_path]["status"] = "error"
             self.active_jobs[file_path]["message"] = str(e)
+    
+    def getSettings(self):
+        """
+        Get application settings from the .ini file.
+        
+        Returns:
+            Dict with 'language' and 'theme' keys, or defaults if file doesn't exist
+        """
+        settings_file = get_settings_file_path()
+        config = configparser.ConfigParser()
+        
+        # Default settings
+        defaults = {
+            'language': 'sv',
+            'theme': 'light'
+        }
+        
+        # Try to read existing settings
+        if os.path.exists(settings_file):
+            try:
+                config.read(settings_file, encoding='utf-8')
+                if 'Settings' in config:
+                    settings = {}
+                    settings['language'] = config.get('Settings', 'language', fallback=defaults['language'])
+                    settings['theme'] = config.get('Settings', 'theme', fallback=defaults['theme'])
+                    return settings
+            except Exception as e:
+                print(f"Error reading settings file: {e}")
+                return defaults
+        
+        # Return defaults if file doesn't exist or error occurred
+        return defaults
+    
+    def saveSettings(self, settings):
+        """
+        Save application settings to the .ini file.
+        
+        Args:
+            settings: Dict with 'language' and 'theme' keys
+        
+        Returns:
+            Dict with success status and message
+        """
+        try:
+            settings_file = get_settings_file_path()
+            config = configparser.ConfigParser()
+            
+            # Read existing config if it exists
+            if os.path.exists(settings_file):
+                config.read(settings_file, encoding='utf-8')
+            
+            # Ensure 'Settings' section exists
+            if 'Settings' not in config:
+                config.add_section('Settings')
+            
+            # Update settings
+            config.set('Settings', 'language', str(settings.get('language', 'sv')))
+            config.set('Settings', 'theme', str(settings.get('theme', 'light')))
+            
+            # Write to file
+            with open(settings_file, 'w', encoding='utf-8') as f:
+                config.write(f)
+            
+            return {"success": True, "message": "Settings saved successfully"}
+        except Exception as e:
+            return {"success": False, "message": str(e)}
 
 def resource_path(relative_path):
     try:

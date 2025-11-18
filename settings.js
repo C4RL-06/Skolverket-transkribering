@@ -6,27 +6,59 @@ const Settings = {
         theme: 'light'
     },
 
-    // Load settings from localStorage
-    load() {
-        const saved = localStorage.getItem('appSettings');
-        return saved ? JSON.parse(saved) : { ...this.defaults };
+    // Cache for current settings (loaded from .ini file)
+    _cachedSettings: null,
+
+    // Load settings from .ini file via Python API
+    async load() {
+        try {
+            // Check if pywebview API is available
+            if (typeof pywebview !== 'undefined' && pywebview.api && pywebview.api.getSettings) {
+                const settings = await pywebview.api.getSettings();
+                this._cachedSettings = settings;
+                return settings;
+            } else {
+                // Fallback to defaults if API not available yet
+                return { ...this.defaults };
+            }
+        } catch (error) {
+            console.error('Error loading settings:', error);
+            return { ...this.defaults };
+        }
     },
 
-    // Save settings to localStorage
-    save(settings) {
-        localStorage.setItem('appSettings', JSON.stringify(settings));
+    // Save settings to .ini file via Python API
+    async save(settings) {
+        try {
+            if (typeof pywebview !== 'undefined' && pywebview.api && pywebview.api.saveSettings) {
+                const result = await pywebview.api.saveSettings(settings);
+                if (result.success) {
+                    this._cachedSettings = settings;
+                    return true;
+                } else {
+                    console.error('Error saving settings:', result.message);
+                    return false;
+                }
+            } else {
+                console.warn('Settings API not available');
+                return false;
+            }
+        } catch (error) {
+            console.error('Error saving settings:', error);
+            return false;
+        }
     },
 
-    // Get current settings
+    // Get current settings (synchronous - returns cached or defaults)
     get() {
-        return this.load();
+        return this._cachedSettings || { ...this.defaults };
     },
 
-    // Update a specific setting
-    update(key, value) {
-        const settings = this.load();
+    // Update a specific setting (async)
+    async update(key, value) {
+        const settings = await this.load();
         settings[key] = value;
-        this.save(settings);
+        await this.save(settings);
         return settings;
     }
 };
@@ -106,8 +138,9 @@ function applyLanguage(lang) {
 }
 
 // Initialize settings on page load
-function initializeSettings() {
-    const settings = Settings.get();
+async function initializeSettings() {
+    // Load settings from .ini file
+    const settings = await Settings.load();
     
     // Apply theme
     applyTheme(settings.theme);
@@ -121,16 +154,16 @@ function initializeSettings() {
     
     if (languageSelect) {
         languageSelect.value = settings.language;
-        languageSelect.addEventListener('change', (e) => {
-            const newSettings = Settings.update('language', e.target.value);
+        languageSelect.addEventListener('change', async (e) => {
+            const newSettings = await Settings.update('language', e.target.value);
             applyLanguage(newSettings.language);
         });
     }
     
     if (themeSelect) {
         themeSelect.value = settings.theme;
-        themeSelect.addEventListener('change', (e) => {
-            const newSettings = Settings.update('theme', e.target.value);
+        themeSelect.addEventListener('change', async (e) => {
+            const newSettings = await Settings.update('theme', e.target.value);
             applyTheme(newSettings.theme);
         });
     }
@@ -164,8 +197,30 @@ function initializeSettingsModal() {
     }
 }
 
+// Initialize when DOM is ready and pywebview is available
+async function waitForPyWebview() {
+    // Wait for pywebview to be available
+    if (typeof pywebview === 'undefined' || !pywebview.api) {
+        return new Promise((resolve) => {
+            if (typeof window.addEventListener !== 'undefined') {
+                window.addEventListener('pywebviewready', resolve, { once: true });
+            } else {
+                // Fallback: poll for pywebview
+                const checkInterval = setInterval(() => {
+                    if (typeof pywebview !== 'undefined' && pywebview.api) {
+                        clearInterval(checkInterval);
+                        resolve();
+                    }
+                }, 100);
+            }
+        });
+    }
+}
+
 // Initialize when DOM is ready
-document.addEventListener('DOMContentLoaded', () => {
-    initializeSettings();
+document.addEventListener('DOMContentLoaded', async () => {
+    // Wait for pywebview to be ready before initializing settings
+    await waitForPyWebview();
+    await initializeSettings();
     initializeSettingsModal();
 });
