@@ -79,6 +79,7 @@ function renderTranscriptionList() {
 function createTranscriptionCard(transcription, index) {
     const card = document.createElement('div');
     card.className = 'transcription-card';
+    card.setAttribute('data-index', index);
     card.onclick = () => selectTranscription(index);
     
     const dateTime = transcription.time ? `${transcription.date} ${transcription.time}` : transcription.date;
@@ -94,9 +95,10 @@ function createTranscriptionCard(transcription, index) {
 function selectTranscription(index) {
     selectedTranscription = transcriptionsData[index];
     
-    // Selected card styling :p
-    document.querySelectorAll('.transcription-card').forEach((card, i) => {
-        card.classList.toggle('active', i === index);
+    // Selected card styling - match by data-index attribute
+    document.querySelectorAll('.transcription-card').forEach((card) => {
+        const cardIndex = parseInt(card.getAttribute('data-index'));
+        card.classList.toggle('active', cardIndex === index);
     });
     
     renderTranscriptionContent();
