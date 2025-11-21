@@ -25,3 +25,9 @@ Open the settings modal (gear icon) to see which Whisper models are downloaded. 
 ---
 Built for teams that need trustworthy, local speech-to-text when handling sensitive recordings.
 
+## This project uses:
+
+* **ffmpeg** to convert audio/video to WAV
+* AI Models **kb-whisper** (SE) and **whisper** (EN) for transcribing
+* **Python** + **PyWebview** for native desktop UI
+* **Resemblyzer** for speaker detection
