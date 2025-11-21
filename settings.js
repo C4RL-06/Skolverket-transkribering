@@ -124,7 +124,11 @@ const translations = {
         errorStartingTranscription: 'Fel vid start av transkribering',
         removeFile: 'Ta bort fil',
         failedToOpenNotepad: 'Misslyckades med att öppna transkribering i Notepad',
-        errorOpeningNotepad: 'Fel vid öppning av transkribering i Notepad'
+        errorOpeningNotepad: 'Fel vid öppning av transkribering i Notepad',
+        deleteTranscription: 'Ta bort transkribering',
+        confirmDeleteTranscription: 'Är du säker på att du vill ta bort den här transkriberingen? Detta tar bort alla tillhörande filer från din dator.',
+        transcriptionDeleted: 'Transkriberingen togs bort.',
+        deleteTranscriptionFailed: 'Misslyckades med att ta bort transkriberingen'
     },
     en: {
         yourTranscriptions: 'Your Transcriptions',
@@ -185,7 +189,11 @@ const translations = {
         errorStartingTranscription: 'Error starting transcription',
         removeFile: 'Remove file',
         failedToOpenNotepad: 'Failed to open transcription in Notepad',
-        errorOpeningNotepad: 'Error opening transcription in Notepad'
+        errorOpeningNotepad: 'Error opening transcription in Notepad',
+        deleteTranscription: 'Delete transcription',
+        confirmDeleteTranscription: 'Are you sure you want to delete this transcription? This removes its files from your computer.',
+        transcriptionDeleted: 'Transcription deleted.',
+        deleteTranscriptionFailed: 'Failed to delete transcription'
     }
 };
 

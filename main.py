@@ -5,6 +5,8 @@ import sys
 import threading
 import json
 import glob
+import shutil
+import stat
 from pathlib import Path
 from transcriber import TranscriptionEngine, TranscriptionJob, Language, ModelSize
 import configparser
@@ -116,6 +118,43 @@ class Api:
         transcription_folder = base_dir / Path(transcription_relative_path).parent
         audio_path = transcription_folder / audio_relative_path
         return str(audio_path)
+
+    def deleteTranscription(self, relative_path):
+        """
+        Delete a transcription (JSON + associated folder) from the TrustScribe directory.
+
+        Args:
+            relative_path: Relative path to the transcription JSON (e.g., "MyFolder/transcription.json")
+        """
+        try:
+            base_dir = Path.home() / "Documents" / "TrustScribe"
+            base_dir_resolved = base_dir.resolve()
+            target_path = (base_dir / relative_path).resolve()
+
+            try:
+                target_path.relative_to(base_dir_resolved)
+            except ValueError:
+                return {"success": False, "message": "Invalid transcription path"}
+
+            if not target_path.exists():
+                return {"success": False, "message": "Transcription file not found"}
+
+            folder = target_path.parent
+            def _remove_readonly(func, path, exc_info):
+                try:
+                    os.chmod(path, stat.S_IWRITE)
+                    func(path)
+                except Exception:
+                    raise
+
+            if folder.exists():
+                shutil.rmtree(folder, onerror=_remove_readonly)
+            else:
+                target_path.unlink()
+
+            return {"success": True, "message": "Transcription deleted"}
+        except Exception as e:
+            return {"success": False, "message": str(e)}
 
     def getDownloadedModels(self):
         """

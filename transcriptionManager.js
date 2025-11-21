@@ -1,6 +1,13 @@
 let transcriptionsData = [];
 let selectedTranscription = null;
 
+function translate(key) {
+    if (typeof getTranslation === 'function') {
+        return getTranslation(key);
+    }
+    return key;
+}
+
 // Format timestamp from HH:MM:SS to clean format (0:10, 10:00, 1:00:00, etc.)
 function formatTimestamp(timestamp) {
     const parts = timestamp.split(':');
@@ -81,14 +88,81 @@ function createTranscriptionCard(transcription, index) {
     card.className = 'transcription-card';
     card.setAttribute('data-index', index);
     card.onclick = () => selectTranscription(index);
+
+    if (selectedTranscription === transcription) {
+        card.classList.add('active');
+    }
     
     const dateTime = transcription.time ? `${transcription.date} ${transcription.time}` : transcription.date;
-    card.innerHTML = `
+
+    const info = document.createElement('div');
+    info.innerHTML = `
         <div class="card-title">${transcription.title}</div>
         <div class="card-date">${dateTime}</div>
     `;
+
+    const deleteBtn = document.createElement('button');
+    deleteBtn.className = 'transcription-delete-btn';
+    deleteBtn.title = translate('deleteTranscription');
+    deleteBtn.innerHTML = '<i class="fa-solid fa-trash"></i>';
+    deleteBtn.addEventListener('click', (event) => handleDeleteTranscription(index, event));
+
+    card.appendChild(info);
+    card.appendChild(deleteBtn);
     
     return card;
+}
+
+async function handleDeleteTranscription(index, event) {
+    if (event) {
+        event.stopPropagation();
+        event.preventDefault();
+    }
+
+    const transcription = transcriptionsData[index];
+    if (!transcription) return;
+
+    const confirmMessage = `${translate('confirmDeleteTranscription')}\n\n"${transcription.title}"`;
+    if (!window.confirm(confirmMessage)) {
+        return;
+    }
+
+    // Release any audio resources pointing to this transcription to avoid file locks
+    if (selectedTranscription === transcription) {
+        const audioElement = document.getElementById('transcriptionAudio');
+        if (audioElement) {
+            try {
+                audioElement.pause();
+                audioElement.removeAttribute('src');
+                audioElement.load();
+            } catch (audioError) {
+                console.warn('Unable to release audio element before deletion:', audioError);
+            }
+        }
+    }
+
+    try {
+        if (typeof pywebview === 'undefined' || !pywebview.api || !pywebview.api.deleteTranscription) {
+            window.alert(translate('deleteTranscriptionFailed'));
+            return;
+        }
+
+        const result = await pywebview.api.deleteTranscription(transcription._relativePath);
+        if (result && result.success) {
+            transcriptionsData.splice(index, 1);
+            if (selectedTranscription === transcription) {
+                selectedTranscription = null;
+            }
+            renderTranscriptionList();
+            renderTranscriptionContent();
+            console.log(translate('transcriptionDeleted'));
+        } else {
+            window.alert(`${translate('deleteTranscriptionFailed')}: ${(result && result.message) || ''}`);
+        }
+    } catch (error) {
+        console.error('Error deleting transcription:', error);
+        window.alert(`${translate('deleteTranscriptionFailed')}: ${error}`);
+    }
 }
 
 // Select and display a transcription
