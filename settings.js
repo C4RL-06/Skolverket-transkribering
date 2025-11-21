@@ -166,7 +166,7 @@ const translations = {
         startTranscription: 'Start Transcription',
         activity: 'Activity',
         languageOption1: 'Swedish',
-        languageOption2: 'Engelska',
+        languageOption2: 'English',
         modelOption1: 'Small Model (Fast, less accurate)',
         modelOption2: 'Medium Model (Good results, slow)',
         modelOption3: 'Big Model (Best results, very slow)',
