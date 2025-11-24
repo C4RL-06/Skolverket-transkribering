@@ -35,6 +35,7 @@ class Api:
         self.processing_queue = []  # Queue for sequential processing
         self.is_processing = False  # Flag to prevent parallel processing
         self._queue_lock = threading.Lock()  # Lock for queue operations
+        self._jobs_lock = threading.Lock()  # Lock for active_jobs access
     
     def _get_engine(self):
         """Get or create the transcription engine (stored outside instance to avoid serialization)."""
@@ -194,7 +195,17 @@ class Api:
     
     def getAllProgress(self):
         """Get progress for all active jobs."""
-        return self.active_jobs
+        with self._jobs_lock:
+            # Return a copy to avoid race conditions with webview serialization
+            # Ensure all values are serializable (no None values)
+            result = {}
+            for file_path, job_data in self.active_jobs.items():
+                result[file_path] = {
+                    "progress": float(job_data.get("progress", 0.0)),
+                    "status": str(job_data.get("status", "unknown")),
+                    "message": str(job_data.get("message", ""))
+                }
+            return result
     
     def startTranscription(self, file_paths, language, model_size):
         """
@@ -227,21 +238,22 @@ class Api:
             
             # Initialize jobs and add to queue
             with self._queue_lock:
-                for file_path in file_paths:
-                    if file_path not in self.active_jobs:
-                        self.active_jobs[file_path] = {
-                            "progress": 0.0,
-                            "status": "pending",
-                            "message": "Queued"
-                        }
-                    
-                    # Create job and add to queue
-                    job = TranscriptionJob(
-                        file_path=file_path,
-                        language=lang,
-                        model_size=model
-                    )
-                    self.processing_queue.append((job, file_path))
+                with self._jobs_lock:
+                    for file_path in file_paths:
+                        if file_path not in self.active_jobs:
+                            self.active_jobs[file_path] = {
+                                "progress": 0.0,
+                                "status": "pending",
+                                "message": "Queued"
+                            }
+                        
+                        # Create job and add to queue
+                        job = TranscriptionJob(
+                            file_path=file_path,
+                            language=lang,
+                            model_size=model
+                        )
+                        self.processing_queue.append((job, file_path))
             
             # Start processing queue if not already running
             if not self.is_processing:
@@ -267,30 +279,61 @@ class Api:
     def _transcribe_file(self, job, file_path):
         """Transcribe a single file."""
         try:
-            self.active_jobs[file_path]["status"] = "processing"
+            # Ensure job entry exists before starting
+            with self._jobs_lock:
+                if file_path not in self.active_jobs:
+                    self.active_jobs[file_path] = {
+                        "progress": 0.0,
+                        "status": "processing",
+                        "message": "Starting..."
+                    }
+                else:
+                    self.active_jobs[file_path]["status"] = "processing"
             
             def progress_callback(progress, message):
-                """Update progress for this file."""
-                self.active_jobs[file_path]["progress"] = progress * 100
-                self.active_jobs[file_path]["message"] = message
+                """Update progress for this file (thread-safe)."""
+                try:
+                    with self._jobs_lock:
+                        if file_path in self.active_jobs:
+                            self.active_jobs[file_path]["progress"] = progress * 100
+                            self.active_jobs[file_path]["message"] = message
+                except Exception:
+                    # Silently ignore errors in progress callback to prevent crashes
+                    pass
             
             # Run transcription
             engine = self._get_engine()
             result = engine.transcribe(job, progress_callback)
             
-            if result.error:
-                self.active_jobs[file_path]["status"] = "error"
-                self.active_jobs[file_path]["message"] = result.error
-            else:
-                # Save result (creates folder and saves both JSON and WAV)
-                engine.save_result(result)
-                
-                self.active_jobs[file_path]["status"] = "completed"
-                self.active_jobs[file_path]["progress"] = 100.0
-                self.active_jobs[file_path]["message"] = "Complete"
+            # Update final status
+            with self._jobs_lock:
+                if file_path in self.active_jobs:
+                    if result.error:
+                        self.active_jobs[file_path]["status"] = "error"
+                        self.active_jobs[file_path]["message"] = result.error
+                    else:
+                        # Save result (creates folder and saves both JSON and WAV)
+                        engine.save_result(result)
+                        
+                        self.active_jobs[file_path]["status"] = "completed"
+                        self.active_jobs[file_path]["progress"] = 100.0
+                        self.active_jobs[file_path]["message"] = "Complete"
         except Exception as e:
-            self.active_jobs[file_path]["status"] = "error"
-            self.active_jobs[file_path]["message"] = str(e)
+            # Ensure we can update error status even if job entry is missing
+            try:
+                with self._jobs_lock:
+                    if file_path not in self.active_jobs:
+                        self.active_jobs[file_path] = {
+                            "progress": 0.0,
+                            "status": "error",
+                            "message": str(e)
+                        }
+                    else:
+                        self.active_jobs[file_path]["status"] = "error"
+                        self.active_jobs[file_path]["message"] = str(e)
+            except Exception:
+                # If even error handling fails, log it but don't crash
+                print(f"Critical error updating job status for {file_path}: {e}")
     
     def getSettings(self):
         """
