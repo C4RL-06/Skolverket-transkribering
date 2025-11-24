@@ -447,8 +447,16 @@ class TranscriptionEngine:
             if progress_callback:
                 progress_callback(0.16, "Converting audio to WAV format...")
             
+            # Ensure temp_dir exists
+            if not self.temp_dir.exists():
+                self.temp_dir.mkdir(parents=True, exist_ok=True)
+            
             wav_path = str(self.temp_dir / f"{Path(job.file_path).stem}.wav")
             audio_path = AudioConverter.convert_to_wav(job.file_path, wav_path)
+            
+            # Validate audio_path was created successfully
+            if not audio_path or not Path(audio_path).exists():
+                raise RuntimeError(f"Failed to convert audio file: {job.file_path}")
             
             audio_duration = AudioConverter.get_audio_duration(audio_path)
             
@@ -632,10 +640,16 @@ class TranscriptionEngine:
         transcription_folder.mkdir(parents=True, exist_ok=True)
         
         # Copy WAV file to transcription folder
+        if not result.audio_path:
+            raise ValueError("Cannot save transcription: audio_path is missing")
+        
         wav_source = Path(result.audio_path)
         wav_dest = transcription_folder / "audio.wav"
         if wav_source.exists():
             shutil.copy2(wav_source, wav_dest)
+        else:
+            # Log warning but continue - audio file might have been cleaned up
+            print(f"Warning: Audio file not found at {result.audio_path}, skipping copy")
         
         # Save JSON file
         json_path = transcription_folder / "transcription.json"
