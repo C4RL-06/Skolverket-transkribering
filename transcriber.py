@@ -247,7 +247,14 @@ class SpeakerDiarizer:
     """Handles speaker diarization using Resemblyzer."""
     
     def __init__(self):
-        self.encoder = VoiceEncoder()
+        self._encoder = None  # Lazy-loaded
+    
+    @property
+    def encoder(self):
+        """Lazy-load the VoiceEncoder only when needed."""
+        if self._encoder is None:
+            self._encoder = VoiceEncoder()
+        return self._encoder
     
     def diarize(self, audio_path: str, transcription_segments: List[Dict],
                 progress_callback: Optional[Callable[[float, str], None]] = None) -> List[Dict]:
@@ -425,8 +432,15 @@ class TranscriptionEngine:
         self.output_base_dir = Path(output_base_dir)
         self.output_base_dir.mkdir(parents=True, exist_ok=True)
         self.model_manager = ModelManager()
-        self.diarizer = SpeakerDiarizer()
+        self._diarizer = None  # Lazy-loaded
         self.temp_dir = Path(tempfile.mkdtemp())
+    
+    @property
+    def diarizer(self):
+        """Lazy-load the SpeakerDiarizer only when needed."""
+        if self._diarizer is None:
+            self._diarizer = SpeakerDiarizer()
+        return self._diarizer
     
     def transcribe(self, job: TranscriptionJob, 
                    progress_callback: Optional[Callable[[float, str], None]] = None) -> TranscriptionResult:

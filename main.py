@@ -4,16 +4,16 @@ import os
 import sys
 import threading
 import json
-import glob
 import shutil
 import stat
 from pathlib import Path
-from transcriber import TranscriptionEngine, TranscriptionJob, Language, ModelSize
 import configparser
 import warnings
 import subprocess
 import tempfile
 warnings.filterwarnings("ignore", message=".*set_audio_backend.*")
+
+# Lazy imports - only import heavy libraries when actually needed
 
 # Store engines outside the Api class to avoid serialization issues
 _engine_cache = {}
@@ -39,6 +39,8 @@ class Api:
     
     def _get_engine(self):
         """Get or create the transcription engine (stored outside instance to avoid serialization)."""
+        # Lazy import to avoid loading heavy libraries at startup
+        from transcriber import TranscriptionEngine
         engine_id = id(self)
         if engine_id not in _engine_cache:
             _engine_cache[engine_id] = TranscriptionEngine()
@@ -50,11 +52,21 @@ class Api:
         json_files = []
         
         if base_dir.exists():
-            # Scan for transcription.json files in subfolders
-            for json_file in base_dir.rglob("transcription.json"):
-                # Get relative path from base_dir (e.g., "FolderName/transcription.json")
-                relative_path = json_file.relative_to(base_dir)
-                json_files.append(str(relative_path))
+            # Use glob with pattern matching instead of rglob for better performance
+            # Only search one level deep to avoid scanning entire directory tree
+            try:
+                # First try direct subdirectories (most common case)
+                for subdir in base_dir.iterdir():
+                    if subdir.is_dir():
+                        json_file = subdir / "transcription.json"
+                        if json_file.exists():
+                            relative_path = json_file.relative_to(base_dir)
+                            json_files.append(str(relative_path))
+            except (OSError, PermissionError):
+                # Fallback to rglob if there are permission issues
+                for json_file in base_dir.rglob("transcription.json"):
+                    relative_path = json_file.relative_to(base_dir)
+                    json_files.append(str(relative_path))
         
         return json_files
     
@@ -164,8 +176,9 @@ class Api:
         This is used by the settings UI to show which models are occupying disk space.
         """
         try:
-            engine = self._get_engine()
-            models = engine.model_manager.list_cached_models()
+            from transcriber import ModelManager
+            model_manager = ModelManager()
+            models = model_manager.list_cached_models()
             return {"success": True, "models": models}
         except Exception as e:
             return {"success": False, "message": str(e)}
@@ -178,8 +191,10 @@ class Api:
             model_id: HuggingFace model identifier (e.g. 'KBLab/kb-whisper-small')
         """
         try:
-            engine = self._get_engine()
-            deleted = engine.model_manager.delete_model_cache(model_id)
+            # Create ModelManager directly without creating full TranscriptionEngine
+            from transcriber import ModelManager
+            model_manager = ModelManager()
+            deleted = model_manager.delete_model_cache(model_id)
             if deleted:
                 return {"success": True, "message": f"Deleted model cache for {model_id}"}
             else:
@@ -220,6 +235,9 @@ class Api:
             Dict with success status and message
         """
         try:
+            # Lazy import to avoid loading heavy libraries at startup
+            from transcriber import TranscriptionJob, Language, ModelSize
+            
             # Map language string to enum
             lang_map = {
                 "sv": Language.SWEDISH,
